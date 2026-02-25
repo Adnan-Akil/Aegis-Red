@@ -1,0 +1,35 @@
+# Python
+venv/
+__pycache__/
+*.pyc
+*.pyo
+.env
+
+# Node / Next.js
+**/node_modules/
+**/.next/
+frontend/.env.local
+
+# Benchmark app runtime artifacts
+benchmark_apps/**/backend/.env
+benchmark_apps/**/nohup.out
+benchmark_apps/**/backend.log
+
+# Generated output
+logs/
+reports/
+data/framework.db
+scratch/
+frontend_dashboard/
+
+# Test artifacts
+test_groq_tools.py
+
+# OS / misc
+.DS_Store
+Thumbs.db
+*.otf
+Adnan_Synopsis_AegisRed.pdf
+synopsis_final.docx
+dc241013-*
+git_commit.ps1
