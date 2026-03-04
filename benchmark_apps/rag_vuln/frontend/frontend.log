@@ -1,0 +1,49 @@
+
+> frontend@0.0.0 dev
+> vite --port 5174 --port 5174
+
+
+  VITE v8.0.10  ready in 229 ms
+
+  ➜  Local:   http://localhost:5174/
+  ➜  Network: use --host to expose
+12:29:30 PM [vite] (client) [console.error] Chat error: TypeError: Failed to fetch
+    at handleSubmit (http://localhost:5174/src/App.jsx:37:27)
+    at executeDispatch (http://localhost:5174/node_modules/.vite/deps/react-dom_client.js?v=47a7201a:9140:5)
+    at runWithFiberInDEV (http://localhost:5174/node_modules/.vite/deps/react-dom_client.js?v=47a7201a:850:66)
+    at processDispatchQueue (http://localhost:5174/node_modules/.vite/deps/react-dom_client.js?v=47a7201a:9166:27)
+    at http://localhost:5174/node_modules/.vite/deps/react-dom_client.js?v=47a7201a:9453:5
+    at batchedUpdates$1 (http://localhost:5174/node_modules/.vite/deps/react-dom_client.js?v=47a7201a:2043:12)
+    at dispatchEventForPluginEventSystem (http://localhost:5174/node_modules/.vite/deps/react-dom_client.js?v=47a7201a:9239:4)
+    at dispatchEvent (http://localhost:5174/node_modules/.vite/deps/react-dom_client.js?v=47a7201a:11318:29)
+    at dispatchDiscreteEvent (http://localhost:5174/node_modules/.vite/deps/react-dom_client.js?v=47a7201a:11300:56)
+12:30:37 PM [vite] (client) [console.error] Chat error: TypeError: Failed to fetch
+    at handleSubmit (http://localhost:5174/src/App.jsx:37:27)
+    at executeDispatch (http://localhost:5174/node_modules/.vite/deps/react-dom_client.js?v=47a7201a:9140:5)
+    at runWithFiberInDEV (http://localhost:5174/node_modules/.vite/deps/react-dom_client.js?v=47a7201a:850:66)
+    at processDispatchQueue (http://localhost:5174/node_modules/.vite/deps/react-dom_client.js?v=47a7201a:9166:27)
+    at http://localhost:5174/node_modules/.vite/deps/react-dom_client.js?v=47a7201a:9453:5
+    at batchedUpdates$1 (http://localhost:5174/node_modules/.vite/deps/react-dom_client.js?v=47a7201a:2043:12)
+    at dispatchEventForPluginEventSystem (http://localhost:5174/node_modules/.vite/deps/react-dom_client.js?v=47a7201a:9239:4)
+    at dispatchEvent (http://localhost:5174/node_modules/.vite/deps/react-dom_client.js?v=47a7201a:11318:29)
+    at dispatchDiscreteEvent (http://localhost:5174/node_modules/.vite/deps/react-dom_client.js?v=47a7201a:11300:56)
+12:31:49 PM [vite] (client) [console.error] Chat error: TypeError: Failed to fetch
+    at handleSubmit (http://localhost:5174/src/App.jsx:37:27)
+    at executeDispatch (http://localhost:5174/node_modules/.vite/deps/react-dom_client.js?v=47a7201a:9140:5)
+    at runWithFiberInDEV (http://localhost:5174/node_modules/.vite/deps/react-dom_client.js?v=47a7201a:850:66)
+    at processDispatchQueue (http://localhost:5174/node_modules/.vite/deps/react-dom_client.js?v=47a7201a:9166:27)
+    at http://localhost:5174/node_modules/.vite/deps/react-dom_client.js?v=47a7201a:9453:5
+    at batchedUpdates$1 (http://localhost:5174/node_modules/.vite/deps/react-dom_client.js?v=47a7201a:2043:12)
+    at dispatchEventForPluginEventSystem (http://localhost:5174/node_modules/.vite/deps/react-dom_client.js?v=47a7201a:9239:4)
+    at dispatchEvent (http://localhost:5174/node_modules/.vite/deps/react-dom_client.js?v=47a7201a:11318:29)
+    at dispatchDiscreteEvent (http://localhost:5174/node_modules/.vite/deps/react-dom_client.js?v=47a7201a:11300:56)
+12:56:37 PM [vite] (client) [console.error] Chat error: TypeError: Failed to fetch
+    at handleSubmit (http://localhost:5174/src/App.jsx:37:27)
+    at executeDispatch (http://localhost:5174/node_modules/.vite/deps/react-dom_client.js?v=47a7201a:9140:5)
+    at runWithFiberInDEV (http://localhost:5174/node_modules/.vite/deps/react-dom_client.js?v=47a7201a:850:66)
+    at processDispatchQueue (http://localhost:5174/node_modules/.vite/deps/react-dom_client.js?v=47a7201a:9166:27)
+    at http://localhost:5174/node_modules/.vite/deps/react-dom_client.js?v=47a7201a:9453:5
+    at batchedUpdates$1 (http://localhost:5174/node_modules/.vite/deps/react-dom_client.js?v=47a7201a:2043:12)
+    at dispatchEventForPluginEventSystem (http://localhost:5174/node_modules/.vite/deps/react-dom_client.js?v=47a7201a:9239:4)
+    at dispatchEvent (http://localhost:5174/node_modules/.vite/deps/react-dom_client.js?v=47a7201a:11318:29)
+    at dispatchDiscreteEvent (http://localhost:5174/node_modules/.vite/deps/react-dom_client.js?v=47a7201a:11300:56)
