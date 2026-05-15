@@ -7,18 +7,6 @@ import sys
 import atexit
 
 TARGET_CONFIG = {
-    "chatbot": {
-        "dir": "benchmark_apps/chatbot_vuln",
-        "backend_port": 8000
-    },
-    "rag": {
-        "dir": "benchmark_apps/rag_vuln",
-        "backend_port": 8001
-    },
-    "tool_agent": {
-        "dir": "benchmark_apps/tool_agent_vuln",
-        "backend_port": 8003
-    },
     "hardened_bot": {
         "dir": "benchmark_apps/hardened_variants",
         "backend_port": 8002

@@ -16,8 +16,6 @@ benchmark_apps/**/nohup.out
 benchmark_apps/**/backend.log
 
 # Generated output
-logs/
-reports/
 data/framework.db
 scratch/
 frontend_dashboard/

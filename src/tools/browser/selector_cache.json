@@ -1,0 +1,30 @@
+{
+    "chatgpt.com": {
+        "chat_input": "#prompt-textarea",
+        "send_button": "button[data-testid='send-button']",
+        "bot_message": "[data-message-author-role='assistant'], .markdown, [class*='prose'], .agent-turn p",
+        "typing_indicator": "[class*='result-streaming'], .animate-spin",
+        "tab_button_template": ""
+    },
+    "grok.com": {
+        "chat_input": "[aria-label*='ask' i]",
+        "send_button": "button[type='submit']",
+        "bot_message": "div.message-bubble, [class*='response'], [class*='assistant']",
+        "typing_indicator": ".animate-spin",
+        "tab_button_template": ""
+    },
+    "gemini.google.com": {
+        "chat_input": "rich-textarea div[contenteditable='true'], p.textarea[contenteditable='true'], div.ql-editor[contenteditable='true'], div[contenteditable='true'][role='textbox']",
+        "send_button": "button[aria-label*='send' i], button.send-button, button[jsname='Qx7uuf']",
+        "bot_message": "model-response .markdown, model-response p, .model-response-text, message-content p, [class*='model-response'] p, .response-content p",
+        "typing_indicator": "model-response.loading, [class*='loading-indicator'], [aria-label*='Gemini is thinking' i]",
+        "tab_button_template": ""
+    },
+    "localhost:5173": {
+        "chat_input": "[placeholder*='message' i]",
+        "send_button": "button[type='submit']",
+        "bot_message": "div.justify-start > div",
+        "typing_indicator": ".animate-spin",
+        "tab_button_template": ""
+    }
+}

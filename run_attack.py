@@ -61,13 +61,18 @@ async def run(target_type: str, port: int, iterations: int, mutations: int, user
     mapper_data = await map_surface(url, target_name=name, target_type=target_type)
     target = await generate_threat_model(url, target_name=name, base_target_type=target_type, port=port, mapper_data=mapper_data)
     
-    # KEY FIX: Persist the chatbot page URL discovered by the mapper.
-    # The mapper may have found the real chat page at a subpath (e.g., /helpdesk).
-    # All subsequent agents (Prober, Executor) must navigate to THAT page, not the root.
+    # Wire mapper discoveries into the target profile
+    # Both discovery_url and discovered_selectors must be set so the executor
+    # navigates to the right page AND uses the right selectors.
     discovered_url = mapper_data.get("discovery_url", url)
+    discovered_sels = mapper_data.get("selectors")
     if discovered_url != url:
         logging.getLogger(__name__).info(f"Mapper discovered chatbot at: {discovered_url} (updating from {url})")
-        target.url = discovered_url
+    target.url = discovered_url
+    target.discovery_url = discovered_url
+    if discovered_sels:
+        target.discovered_selectors = discovered_sels
+        logging.getLogger(__name__).info(f"Mapper selectors applied to target (strategy={mapper_data.get('strategy','?')})")
     
     # Active Probing Phase
     from src.agents.prober import active_probe

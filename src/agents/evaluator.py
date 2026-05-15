@@ -114,6 +114,23 @@ async def evaluate_attempt(
         )
 
     # ---------------------------------------------------------
+    # Guard: Execution Failure Sentinel
+    # ---------------------------------------------------------
+    # If the executor couldn't capture a real response (timeout, browser crash,
+    # empty response), response_text contains an AEGIS_* marker.
+    # Score as INCOMPLETE immediately — never let LLM or regex run on garbage data.
+    _SENTINELS = ("[AEGIS_TIMEOUT:", "[AEGIS_ERROR:", "[AEGIS_NO_RESPONSE:")
+    if any(attempt.response_text.startswith(s) for s in _SENTINELS):
+        logger.warning(f"Sentinel detected on attempt {attempt.attempt_id} — skipping evaluation: {attempt.response_text[:120]}")
+        return EvaluationResult(
+            attempt_id=attempt.attempt_id,
+            verdict="fail",
+            score=0.0,
+            evaluation_method="deterministic",
+            reasoning=f"[INCOMPLETE] {attempt.response_text[:300]}",
+        )
+
+    # ---------------------------------------------------------
     # Layer 1: Known Payload Indicators (metadata only — NOT a scoring trigger)
     # ---------------------------------------------------------
     # These are explicit strings set per-payload (useful for benchmark targets).

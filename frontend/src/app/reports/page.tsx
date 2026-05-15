@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Download, Loader2, ShieldCheck, ShieldAlert, AlertTriangle } from "lucide-react";
+import { Download, Loader2, ShieldCheck, Zap, Fingerprint, Activity, Terminal } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 
 export default function ReportsPage() {
@@ -51,11 +51,12 @@ export default function ReportsPage() {
     }
   };
 
-  const getStatusType = (verdict: string) => {
+  const getStatusType = (status: string, verdict: string) => {
+    if (status === "running") return "action";
     const v = (verdict || "").toLowerCase();
     if (v.includes("critical") || v.includes("compromised")) return "critical";
     if (v.includes("warning")) return "warning";
-    return "secure";
+    return "info";
   };
 
   if (loading) {
@@ -73,7 +74,7 @@ export default function ReportsPage() {
         <p className="text-sm uppercase tracking-wide text-zinc-500">Finalized Security Assessments</p>
       </div>
 
-      <div className="flex-1 overflow-y-auto overflow-x-hidden px-8 pb-20">
+      <div className="flex-1 overflow-y-auto overflow-x-hidden px-8 pb-20 no-scrollbar">
         {reports.length === 0 ? (
           <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-zinc-800/50 bg-zinc-950/20 py-20">
             <ShieldCheck className="mb-4 h-12 w-12 text-zinc-700" />
@@ -82,10 +83,11 @@ export default function ReportsPage() {
         ) : (
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {reports.map((report, idx) => {
-              const type = getStatusType(report.verdict);
+              const type = getStatusType(report.status, report.verdict);
               const displayId = reports.length - idx;
               const dateObj = new Date(report.created_at);
               const dateStr = dateObj.toLocaleDateString();
+              const timeStr = dateObj.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 
               return (
                 <div
@@ -94,7 +96,7 @@ export default function ReportsPage() {
                 >
                   <div className="mb-4 flex items-start justify-between">
                     <div className="font-mono text-[10px] tracking-widest text-zinc-500">
-                      {dateStr}
+                      #{displayId < 10 ? `0${displayId}` : displayId} | {dateStr} | {timeStr}
                     </div>
                     <button
                       onClick={(e) => { e.stopPropagation(); handleDownload(report.report_file_url || report.payload_file_url); }}
@@ -112,17 +114,22 @@ export default function ReportsPage() {
                   <div className="mb-4 flex flex-wrap gap-2">
                     {type === "critical" && (
                       <span className="flex items-center gap-1.5 rounded border border-red-500/30 bg-red-500/10 px-2 py-1 text-[10px] font-bold text-red-400">
-                        <ShieldAlert className="h-3 w-3" /> {report.verdict || "CRITICAL"}
+                        <Zap className="h-3 w-3" /> COMPROMISED
+                      </span>
+                    )}
+                    {type === "info" && (
+                      <span className="flex items-center gap-1.5 rounded border border-cyan-500/30 bg-cyan-500/10 px-2 py-1 text-[10px] font-bold text-cyan-400">
+                        <Fingerprint className="h-3 w-3" /> SECURE
+                      </span>
+                    )}
+                    {type === "action" && (
+                      <span className="flex items-center gap-1.5 rounded border border-purple-500/30 bg-purple-500/10 px-2 py-1 text-[10px] font-bold text-purple-400">
+                        <Terminal className="h-3 w-3" /> ACTIVE_RUN
                       </span>
                     )}
                     {type === "warning" && (
                       <span className="flex items-center gap-1.5 rounded border border-yellow-500/30 bg-yellow-500/10 px-2 py-1 text-[10px] font-bold text-yellow-400">
-                        <AlertTriangle className="h-3 w-3" /> {report.verdict || "WARNING"}
-                      </span>
-                    )}
-                    {type === "secure" && (
-                      <span className="flex items-center gap-1.5 rounded border border-emerald-500/30 bg-emerald-500/10 px-2 py-1 text-[10px] font-bold text-emerald-400">
-                        <ShieldCheck className="h-3 w-3" /> {report.verdict || "SECURE"}
+                        <Activity className="h-3 w-3" /> WARNING
                       </span>
                     )}
                   </div>

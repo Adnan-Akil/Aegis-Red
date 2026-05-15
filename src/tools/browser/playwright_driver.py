@@ -134,7 +134,14 @@ class PlaywrightDriver:
         """Load the target URL and, for hardened variants, switch to the right tab."""
         assert self._page is not None
         logger.info("Navigating to %s (%s)", self.url, self.target_name)
-        await self._page.goto(self.url, wait_until="networkidle")
+        # Use domcontentloaded — avoids hanging on sites with continuous background
+        # polling (ChatGPT, Gemini) that never reach networkidle.
+        # Then attempt a short networkidle settle as best-effort for slower apps.
+        await self._page.goto(self.url, wait_until="domcontentloaded", timeout=30000)
+        try:
+            await self._page.wait_for_load_state("networkidle", timeout=3000)
+        except Exception:
+            pass  # Expected on ChatGPT / Gemini — proceed with whatever is rendered
 
         if self.target_name == "hardened_variants" and self.hardened_tab:
             tab_labels = {"bot": "Chatbot", "rag": "RAG Assistant", "tool": "Tool Agent"}
@@ -151,6 +158,8 @@ class PlaywrightDriver:
     async def send_message(self, message: str) -> tuple[str, int]:
         """
         Type a message, submit it, wait for the bot to respond.
+        Uses .first on every locator to avoid Playwright strict-mode violations
+        when the selector matches multiple elements (e.g. ChatGPT's dual textarea+div).
 
         Returns:
             (response_text, duration_ms)
@@ -162,30 +171,36 @@ class PlaywrightDriver:
         # Count existing bot messages before submission so we can detect the new one
         before_count = await page.locator(sel["bot_message"]).count()
 
-        # Type into the input field
-        await page.locator(sel["chat_input"]).click()
-        await page.locator(sel["chat_input"]).type(message, delay=10)
+        # Always use .first — avoids strict mode crash when selector matches 2-3 elements
+        input_loc = page.locator(sel["chat_input"]).first
+
+        # Click to focus
+        await input_loc.click()
+
+        # Try .fill() first (works on textarea, input, contenteditable=plaintext-only)
+        # Fall back to .type() for ProseMirror / rich contenteditable divs
+        try:
+            await input_loc.fill(message)
+        except Exception:
+            await input_loc.type(message, delay=10)
+
         logger.debug("Typed payload (%d chars)", len(message))
 
         # Submit
         t_start = time.monotonic()
         try:
-            # Try Enter first
-            await page.locator(sel["chat_input"]).press("Enter")
+            await input_loc.press("Enter")
             logger.debug("Submitted via Enter key")
         except Exception:
             pass
-        
+
         try:
-            # Try Button click with a short timeout. 
-            # If Enter worked, the button might be disabled or gone, and we don't want to wait 30s.
-            await page.locator(sel["send_button"]).click(timeout=3000)
+            await page.locator(sel["send_button"]).first.click(timeout=3000)
             logger.debug("Submitted via Button click")
         except Exception:
-            # If button click fails/times out, we assume Enter or a previous click worked
-            logger.debug("Button click failed or timed out (might have already submitted via Enter)")
+            logger.debug("Button click failed or timed out (Enter likely worked)")
 
-        # Wait: typing indicator appears then a new bot message appears
+        # Wait for bot response
         response_text = await self._wait_for_response(before_count, page)
         duration_ms = int((time.monotonic() - t_start) * 1000)
 
@@ -193,47 +208,88 @@ class PlaywrightDriver:
             "[%s] Got response in %dms: %.120s...",
             self.target_name, duration_ms, response_text,
         )
+
         return response_text, duration_ms
 
     async def _wait_for_response(self, before_count: int, panel=None) -> str:
         """
         Poll until a new bot message appears after the typing indicator is gone.
-        panel: scoped Playwright locator (page or a container element).
-        Returns the text content of the latest bot message.
+        Includes fallback detection when bot_message selector matches nothing —
+        common when cached selectors are stale for a target site.
         """
         assert self._page is not None
         scope = panel if panel is not None else self._page
         sel = self._selectors
-        bot_selector = sel["bot_message"]
+        bot_selector    = sel["bot_message"]
         typing_selector = sel["typing_indicator"]
 
-        elapsed = 0
+        # Broad fallback selectors tried when bot_message never matches
+        _FALLBACK_BOT_SELECTORS = [
+            "model-response p", "model-response", ".model-response-text",
+            "[data-message-author-role='assistant'] p",
+            "[data-message-author-role='assistant']",
+            ".markdown p", ".markdown", "[class*='prose'] p",
+            ".agent-turn p", ".response-content p",
+            "message-content p", "message-content",
+            "[class*='response'] p", "[class*='message'] p",
+        ]
+
+        elapsed          = 0
+        selector_probed  = False  # whether we've tried fallback selectors yet
+
         while elapsed < RESPONSE_TIMEOUT_MS:
-            # Wait for typing indicator to disappear first
-            typing_count = await scope.locator(typing_selector).count()
+            typing_count  = await scope.locator(typing_selector).count()
             current_count = await scope.locator(bot_selector).count()
 
+            # ── Happy path: selector is working ──────────────────────────────
             if typing_count == 0 and current_count > before_count:
-                # New message has appeared — grab the last one
                 messages = scope.locator(bot_selector)
-                last = messages.last
-                text = (await last.inner_text()).strip()
-                
-                # Settle logic: if it looks like a prompt or is very short, 
-                # wait a bit to see if more text streams in.
+                last     = messages.last
+                text     = (await last.inner_text()).strip()
+                # Settle logic: wait if text is still streaming in
                 if len(text) < 10 or text.endswith(">"):
-                    logger.debug("Detected short or prompt-like response ('%s'), waiting for content to stream...", text)
                     last_len = len(text)
-                    for _ in range(10): # Max 2 seconds of additional settling
+                    for _ in range(10):
                         await asyncio.sleep(0.2)
                         new_text = (await last.inner_text()).strip()
                         if len(new_text) > last_len:
-                            text = new_text
-                            last_len = len(new_text)
-                        elif len(new_text) > 0:
-                            # Length stopped increasing
+                            text, last_len = new_text, len(new_text)
+                        elif new_text:
                             break
                 return text
+
+            # ── Stale selector probe: if 3s have passed and bot_message still
+            #    matches 0 elements, our cached selector is wrong for this page.
+            #    Try broad fallbacks and update self._selectors in-place. ─────
+            if not selector_probed and elapsed >= 3000:
+                selector_probed = True
+                logger.warning(
+                    "[%s] bot_message selector '%s' matched 0 elements after 3s — "
+                    "trying fallback selectors", self.target_name, bot_selector
+                )
+                for fb in _FALLBACK_BOT_SELECTORS:
+                    try:
+                        cnt = await scope.locator(fb).count()
+                        if cnt > 0:
+                            logger.info(
+                                "[%s] Fallback bot_message selector found: '%s' (%d matches)",
+                                self.target_name, fb, cnt
+                            )
+                            # Patch selectors in-place so remaining polls use this
+                            self._selectors["bot_message"] = fb
+                            bot_selector = fb
+                            before_count = max(0, cnt - 1)  # assume last is the new msg
+                            # Persist the fix to selector cache
+                            from .selector_manager import save_to_cache
+                            from urllib.parse import urlparse
+                            domain = urlparse(self.url).netloc
+                            if domain:
+                                updated = dict(self._selectors)
+                                save_to_cache(domain, updated)
+                                logger.info("[%s] Updated selector cache with fallback bot_message", self.target_name)
+                            break
+                    except Exception:
+                        continue
 
             await asyncio.sleep(POLL_INTERVAL_MS / 1000)
             elapsed += POLL_INTERVAL_MS
@@ -241,6 +297,7 @@ class PlaywrightDriver:
         raise TimeoutError(
             f"No bot response within {RESPONSE_TIMEOUT_MS}ms for target '{self.target_name}'"
         )
+
 
     # ------------------------------------------------------------------
     # Utilities

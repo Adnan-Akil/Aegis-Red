@@ -27,7 +27,7 @@ async def execute_attack(
     logger.info(f"Executing payload {payload.payload_id} ({payload.name}) against {target.name}")
     
     start_time = time.monotonic()
-    
+
     # Map target_type to hardened tab if applicable
     hardened_tab = None
     if target.target_type == "hardened_bot":
@@ -36,39 +36,51 @@ async def execute_attack(
         hardened_tab = "rag"
     elif target.target_type == "hardened_tool":
         hardened_tab = "tool"
-        
-    # Use discovery_url if the mapper found a specific subpage
-    nav_url = target.discovery_url or target.url
 
-    # Use dynamically discovered selectors if available; fall back to hardcoded
+    nav_url = target.discovery_url or target.url
     override_selectors = target.discovered_selectors or None
 
-    async with PlaywrightDriver(
-        target_name=target.name,
-        url=nav_url,
-        hardened_tab=hardened_tab,
-        selector_override=override_selectors,
-    ) as driver:
-        # First turn
-        response_text, _ = await driver.send_message(payload.template)
-        
-        # Follow-up turns for multi-turn chains
-        for i, follow_up in enumerate(payload.follow_up_turns):
-            logger.debug(f"Sending follow-up turn {i+1}...")
-            response_text, _ = await driver.send_message(follow_up)
-            
-        duration_ms = int((time.monotonic() - start_time) * 1000)
-        
-        attempt = AttackAttempt(
-            session_id=session_id,
-            target_id=target.target_id,
-            payload_id=payload.payload_id,
-            category=payload.category,
-            payload_text=payload.template,
-            response_text=response_text,
-            turn_index=len(payload.follow_up_turns),
-            duration_ms=duration_ms,
-            timestamp=datetime.utcnow(),
-            parent_payload_id=payload.parent_payload_id
-        )
-        return attempt
+    response_text = "[AEGIS_NO_RESPONSE: Execution did not complete]"
+
+    try:
+        async with PlaywrightDriver(
+            target_name=target.name,
+            url=nav_url,
+            hardened_tab=hardened_tab,
+            selector_override=override_selectors,
+        ) as driver:
+            # First turn
+            response_text, _ = await driver.send_message(payload.template)
+
+            # Guard: if response is empty or suspiciously short, mark as timeout
+            if not response_text or len(response_text.strip()) < 3:
+                response_text = "[AEGIS_NO_RESPONSE: Bot returned empty response — result invalid]"
+
+            # Follow-up turns for multi-turn chains
+            for i, follow_up in enumerate(payload.follow_up_turns):
+                logger.debug(f"Sending follow-up turn {i+1}...")
+                follow_text, _ = await driver.send_message(follow_up)
+                if follow_text and len(follow_text.strip()) >= 3:
+                    response_text = follow_text  # Only update if we got a real response
+
+    except TimeoutError as e:
+        logger.warning(f"Timeout waiting for bot response on attempt against {target.name}: {e}")
+        response_text = f"[AEGIS_TIMEOUT: Bot did not respond within the time limit — result invalid. {e}]"
+    except Exception as e:
+        logger.error(f"Executor failed: {e}")
+        response_text = f"[AEGIS_ERROR: Browser/execution error — result invalid. {str(e)[:200]}]"
+
+    duration_ms = int((time.monotonic() - start_time) * 1000)
+
+    return AttackAttempt(
+        session_id=session_id,
+        target_id=target.target_id,
+        payload_id=payload.payload_id,
+        category=payload.category,
+        payload_text=payload.template,
+        response_text=response_text,
+        turn_index=len(payload.follow_up_turns),
+        duration_ms=duration_ms,
+        timestamp=datetime.utcnow(),
+        parent_payload_id=payload.parent_payload_id
+    )

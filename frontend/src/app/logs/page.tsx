@@ -74,7 +74,7 @@ export default function LogsPage() {
         <p className="text-sm uppercase tracking-wide text-zinc-500">Real-time execution tracing</p>
       </div>
 
-      <div className="flex-1 overflow-y-auto overflow-x-hidden px-8 pb-20">
+      <div className="flex-1 overflow-y-auto overflow-x-hidden px-8 pb-20 no-scrollbar">
         {logs.length === 0 ? (
           <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-zinc-800/50 bg-zinc-950/20 py-20">
             <ScrollText className="mb-4 h-12 w-12 text-zinc-700" />
@@ -96,7 +96,7 @@ export default function LogsPage() {
                 >
                   <div className="mb-4 flex items-start justify-between">
                     <div className="font-mono text-[10px] tracking-widest text-zinc-500">
-                      {dateStr} | {timeStr}
+                      #{displayId < 10 ? `0${displayId}` : displayId} | {dateStr} | {timeStr}
                     </div>
                     <button
                       onClick={(e) => { e.stopPropagation(); handleDownload(log.payload_file_url); }}

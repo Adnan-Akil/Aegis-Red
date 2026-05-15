@@ -386,7 +386,7 @@ async def map_surface(url: str, target_name: str, target_type: str) -> dict:
             for link in ordered:
                 logger.info(f"[Mapper] Checking link: {link}")
                 try:
-                    await page.goto(link, wait_until="networkidle", timeout=8000)
+                    await page.goto(link, wait_until="domcontentloaded", timeout=10000)
                 except Exception:
                     continue
                 surface = await _pipeline(page)
@@ -402,7 +402,7 @@ async def map_surface(url: str, target_name: str, target_type: str) -> dict:
                 for path in _COMMON_PATHS:
                     candidate = base + path
                     try:
-                        resp = await page.goto(candidate, wait_until="networkidle", timeout=5000)
+                        resp = await page.goto(candidate, wait_until="domcontentloaded", timeout=6000)
                         if resp and resp.status < 400:
                             surface = await _pipeline(page)
                             if surface:

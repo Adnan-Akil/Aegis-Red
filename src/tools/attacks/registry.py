@@ -28,15 +28,22 @@ from .obfuscation import OBFUSCATION_PAYLOADS
 
 __all__ = ["AttackRegistry"]
 
+# Tags that mark payloads as requiring a confirmed RAG/enterprise context.
+# These MUST NOT be sent to unknown/general-purpose targets (Gemini, ChatGPT, etc.)
+# as they assume internal company documents exist in the context window.
+_RAG_CONTEXT_TAGS = {"rag", "tfidf-tuned", "semantic-lure", "dlp-bypass"}
+
 # Map target_type → which categories are most relevant
 _TARGET_CATEGORY_MAP: dict[str, list[str]] = {
-    "chatbot":        ["jailbreak", "escalation", "leakage"],
+    "chatbot":        ["jailbreak", "escalation"],
     "rag":            ["leakage", "jailbreak"],
-    "tool_agent":     ["tool_abuse", "escalation", "leakage"],
-    "hardened_bot":   ["jailbreak", "escalation", "obfuscation", "leakage"],
+    "tool_agent":     ["tool_abuse", "escalation"],
+    "hardened_bot":   ["jailbreak", "escalation", "obfuscation"],
     "hardened_rag":   ["leakage", "jailbreak", "escalation", "obfuscation"],
-    "hardened_tool":  ["tool_abuse", "escalation", "obfuscation", "leakage"],
-    "unknown":        ["jailbreak", "leakage", "tool_abuse", "escalation", "obfuscation"],
+    "hardened_tool":  ["tool_abuse", "escalation", "obfuscation"],
+    # Unknown: start with jailbreaks + generic probes only.
+    # Leakage payloads that assume enterprise RAG context are excluded here.
+    "unknown":        ["jailbreak", "escalation", "obfuscation"],
 }
 
 
@@ -76,12 +83,18 @@ class AttackRegistry:
     def get_for_target(cls, target_type: str) -> list[AttackPayload]:
         """
         Return all payloads relevant to a given target type.
-        Falls back to all payloads if target_type is unrecognised.
+        For unknown targets, RAG-context-specific leakage payloads are excluded
+        (they assume an enterprise document store exists — wrong for general chatbots).
         """
-        categories = _TARGET_CATEGORY_MAP.get(target_type, list(cls._by_category.keys()))
+        categories = _TARGET_CATEGORY_MAP.get(target_type, ["jailbreak", "escalation", "obfuscation"])
         result: list[AttackPayload] = []
         for cat in categories:
-            result.extend(cls.get_by_category(cat))
+            for p in cls.get_by_category(cat):
+                # Strip RAG-context payloads from non-RAG targets
+                if cat == "leakage" and target_type not in ("rag", "hardened_rag"):
+                    if any(t in _RAG_CONTEXT_TAGS for t in p.tags):
+                        continue  # Skip — assumes enterprise RAG context
+                result.append(p)
         return result
 
     @classmethod
