@@ -50,24 +50,25 @@ class PlaywrightDriver:
         self,
         target_name: TargetName,
         url: str,
-        # For hardened_variants only — which tab to activate
         hardened_tab: Literal["bot", "rag", "tool"] | None = None,
         slow_mo_ms: int = 100,
+        # Dynamically discovered selectors from the Mapper — highest priority
+        selector_override: dict | None = None,
     ) -> None:
         self.target_name = target_name
         self.url = url
         self.hardened_tab = hardened_tab
         self.slow_mo_ms = slow_mo_ms
 
-        # Known named targets always use their hardcoded selectors — never let the cache
-        # override them (self-healing cache is only for external/unknown targets).
-        from .selector_manager import get_cached_selectors
-        if target_name in SELECTORS:
+        if selector_override:
+            # Mapper provided site-specific selectors — use them directly
+            self._selectors = selector_override.copy()
+            logger.info(f"Using mapper-discovered selectors for '{target_name}' (override)")
+        elif target_name in SELECTORS:
             self._selectors = SELECTORS[target_name].copy()
             logger.debug(f"Using hardcoded selectors for known target '{target_name}'")
         else:
-            # URL-path hint: even for external/named-by-netloc targets, try to infer
-            # the correct selector set from well-known URL patterns before touching cache.
+            from .selector_manager import get_cached_selectors
             from urllib.parse import urlparse
             path = urlparse(url).path.rstrip("/")
             _PATH_HINTS: dict[str, str] = {
@@ -86,6 +87,7 @@ class PlaywrightDriver:
                     self._selectors = cached
                 else:
                     self._selectors = SELECTORS["generic"].copy()
+
         self._playwright = None
         self._browser: Browser | None = None
         self._context: BrowserContext | None = None

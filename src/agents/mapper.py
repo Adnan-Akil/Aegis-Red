@@ -1,92 +1,442 @@
+"""
+src/agents/mapper.py
+
+Adaptive Surface Mapper — 3-stage detection pipeline:
+  Stage 1 | Heuristic   — broad ordered CSS/ARIA candidate lists (fast, no LLM)
+  Stage 2 | Proximity   — JS DOM traversal: find input, walk up to locate sibling button
+  Stage 3 | LLM         — Groq analyses a cleaned HTML snapshot (slow, works on anything)
+
+Returns a DiscoveredSurface with the URL AND the dynamically resolved selectors for
+that specific target, so the executor doesn't need to rely on hardcoded SELECTORS.
+"""
+
+import json
 import logging
-from urllib.parse import urljoin, urlparse
+import os
+from dataclasses import dataclass
+from typing import Optional
+from urllib.parse import urlparse
+
+from groq import AsyncGroq
+
 from src.tools.browser.playwright_driver import PlaywrightDriver
 from src.tools.browser.selectors import SELECTORS
+from src.tools.browser.selector_manager import save_to_cache, get_cached_selectors
 
 logger = logging.getLogger(__name__)
 
-# Chatbot subpaths to try on SPAs and React apps that have no navigable <a> links
-_COMMON_CHATBOT_PATHS = [
-    "/chat", "/helpdesk", "/assistant", "/support", "/ai", "/bot",
-    "/chatbot", "/help", "/contact", "/query", "/ask", "/agent", "/console"
+# ── Candidate selector lists (ordered: most specific → least specific) ──────
+
+_INPUT_CANDIDATES = [
+    "#prompt-textarea",
+    "#chat-input",
+    ".chat-input",
+    "p[contenteditable='true']",
+    "div[contenteditable='true']",
+    "[contenteditable='true']",
+    "rich-textarea",
+    "[role='textbox']",
+    "[role='searchbox']",
+    "[data-testid*='input']",
+    "[data-testid*='chat']",
+    "[data-testid*='prompt']",
+    "[aria-label*='message' i]",
+    "[aria-label*='prompt' i]",
+    "[aria-label*='chat' i]",
+    "[aria-label*='ask' i]",
+    "[aria-label*='type' i]",
+    "[aria-label*='question' i]",
+    "[placeholder*='message' i]",
+    "[placeholder*='prompt' i]",
+    "[placeholder*='ask' i]",
+    "[placeholder*='question' i]",
+    "[placeholder*='type' i]",
+    "[placeholder*='chat' i]",
+    "textarea",
+    "input[type='text']",
 ]
 
-async def _is_chat_surface(page, generic_selectors: dict) -> bool:
+_SEND_CANDIDATES = [
+    "[data-testid*='send']",
+    "[data-testid*='submit']",
+    "button[aria-label*='send' i]",
+    "button[aria-label*='submit' i]",
+    "button[title*='send' i]",
+    "button[type='submit']",
+    "button:has(svg[class*='send' i])",
+    "button:has(svg[class*='arrow' i])",
+    "button:has(svg[class*='plane' i])",
+    ".send-button",
+    ".send-btn",
+    "#send-button",
+    "input[type='submit']",
+]
+
+_BOT_CANDIDATES = [
+    "[data-testid*='response']",
+    "[data-testid*='assistant']",
+    "[data-testid*='message']",
+    "[aria-label*='response' i]",
+    "[class*='assistant']",
+    "[class*='bot-message']",
+    ".message.bot",
+    ".assistant-message",
+    "div.justify-start > div",
+]
+
+_TYPING_CANDIDATES = [
+    "[aria-label*='loading' i]",
+    "[aria-label*='thinking' i]",
+    ".typing-indicator",
+    ".animate-spin",
+    "[class*='typing']",
+    "[class*='loading']",
+    ".loading",
+]
+
+_COMMON_PATHS = [
+    "/chat", "/helpdesk", "/assistant", "/support", "/ai", "/bot",
+    "/chatbot", "/help", "/contact", "/query", "/ask", "/agent", "/console",
+]
+
+
+# ── DiscoveredSurface ────────────────────────────────────────────────────────
+
+@dataclass
+class DiscoveredSurface:
+    url: str
+    chat_input: str
+    send_button: str
+    bot_message: str
+    typing_indicator: str
+    confidence: float   # 0.0 – 1.0
+    strategy: str       # "heuristic" | "proximity" | "llm" | "fallback"
+
+    def to_selector_dict(self) -> dict:
+        return {
+            "chat_input":          self.chat_input,
+            "send_button":         self.send_button,
+            "bot_message":         self.bot_message,
+            "typing_indicator":    self.typing_indicator,
+            "tab_button_template": "",
+        }
+
+
+# ── Helpers ──────────────────────────────────────────────────────────────────
+
+async def _wait(page, timeout: int = 5000) -> None:
+    try:
+        await page.wait_for_load_state("networkidle", timeout=timeout)
+    except Exception:
+        pass
+
+
+async def _first_match(page, candidates: list[str]) -> Optional[str]:
+    """Return first selector from candidates that resolves to at least one element."""
+    for sel in candidates:
+        try:
+            if await page.query_selector(sel):
+                return sel
+        except Exception:
+            continue
+    return None
+
+
+# ── Stage 1: Heuristic ───────────────────────────────────────────────────────
+
+async def _detect_heuristic(page) -> Optional[DiscoveredSurface]:
+    """Broad ordered CSS/ARIA pattern matching. No LLM cost."""
+    # Give SPA a moment to render
+    try:
+        await page.wait_for_selector(
+            ", ".join(_INPUT_CANDIDATES[:8]), timeout=3000, state="attached"
+        )
+    except Exception:
+        pass
+
+    input_sel = await _first_match(page, _INPUT_CANDIDATES)
+    if not input_sel:
+        return None
+
+    send_sel = await _first_match(page, _SEND_CANDIDATES)
+    confidence = 0.85
+
+    if not send_sel:
+        # Loose fallback: any button alongside the input is enough
+        send_sel = await _first_match(page, ["button", "[role='button']", "form"])
+        if not send_sel:
+            return None
+        confidence = 0.5
+
+    bot_sel  = await _first_match(page, _BOT_CANDIDATES)  or "div"
+    typ_sel  = await _first_match(page, _TYPING_CANDIDATES) or ".animate-spin"
+
+    logger.info(f"[Mapper][Heuristic] input={input_sel!r}  send={send_sel!r}  conf={confidence:.0%}")
+    return DiscoveredSurface(
+        url=page.url, chat_input=input_sel, send_button=send_sel,
+        bot_message=bot_sel, typing_indicator=typ_sel,
+        confidence=confidence, strategy="heuristic",
+    )
+
+
+# ── Stage 2: DOM Proximity ────────────────────────────────────────────────────
+
+async def _detect_proximity(page) -> Optional[DiscoveredSurface]:
     """
-    A real chat surface must have BOTH an input field AND a send button.
-    Checking only for an input causes false positives on search bars and file upload forms.
+    JavaScript DOM traversal: for every textarea/input/contenteditable,
+    walk up the DOM tree up to 4 levels looking for a sibling button.
+    Works on custom layouts where inputs and buttons are flex siblings.
     """
-    has_input = await page.query_selector(generic_selectors["chat_input"])
-    has_button = await page.query_selector(generic_selectors["send_button"])
-    return bool(has_input and has_button)
+    result = await page.evaluate("""
+    () => {
+        const inputs = [...document.querySelectorAll(
+            'textarea, input[type="text"], [contenteditable="true"], [role="textbox"]'
+        )];
+        for (const inp of inputs) {
+            let node = inp;
+            for (let i = 0; i < 4; i++) {
+                node = node.parentElement;
+                if (!node) break;
+                const btn = node.querySelector(
+                    'button, input[type="submit"], [role="button"]'
+                );
+                if (btn) {
+                    const iSel = inp.id ? `#${inp.id}`
+                               : inp.getAttribute('aria-label') ? `[aria-label="${inp.getAttribute('aria-label')}"]`
+                               : inp.tagName.toLowerCase();
+                    const bSel = btn.id  ? `#${btn.id}`
+                               : btn.getAttribute('aria-label') ? `[aria-label="${btn.getAttribute('aria-label')}"]`
+                               : btn.getAttribute('type') ? `${btn.tagName.toLowerCase()}[type="${btn.getAttribute('type')}"]`
+                               : btn.tagName.toLowerCase();
+                    return { iSel, bSel };
+                }
+            }
+        }
+        return null;
+    }
+    """)
+
+    if not result:
+        return None
+
+    input_sel = result["iSel"]
+    send_sel  = result["bSel"]
+    bot_sel   = await _first_match(page, _BOT_CANDIDATES)   or "div"
+    typ_sel   = await _first_match(page, _TYPING_CANDIDATES) or ".animate-spin"
+
+    logger.info(f"[Mapper][Proximity] input={input_sel!r}  send={send_sel!r}")
+    return DiscoveredSurface(
+        url=page.url, chat_input=input_sel, send_button=send_sel,
+        bot_message=bot_sel, typing_indicator=typ_sel,
+        confidence=0.7, strategy="proximity",
+    )
+
+
+# ── Stage 3: LLM ─────────────────────────────────────────────────────────────
+
+_LLM_SYSTEM = """You are a web scraping expert. Given an HTML snippet, determine if the page
+contains an AI chatbot or conversational interface.
+
+If YES, return ONLY this JSON (no markdown, no extra text):
+{
+  "has_chat": true,
+  "input_selector": "<valid CSS selector for the text input>",
+  "send_selector": "<valid CSS selector for the send/submit button>",
+  "bot_selector": "<valid CSS selector for bot response messages>",
+  "typing_selector": "<valid CSS selector for loading indicator, or empty string>",
+  "reasoning": "<one sentence>"
+}
+
+If NO chat interface: {"has_chat": false}
+
+Selector rules: prefer #id > [aria-label] > tag[attr] > .class. Must be valid for querySelector()."""
+
+
+async def _detect_llm(page) -> Optional[DiscoveredSurface]:
+    """Groq LLM analyses a cleaned HTML snapshot. Last-resort fallback."""
+    api_key = os.getenv("GROQ_API_KEY")
+    if not api_key:
+        logger.warning("[Mapper][LLM] No GROQ_API_KEY — skipping LLM stage")
+        return None
+
+    try:
+        html = await page.evaluate("""
+        () => {
+            const c = document.documentElement.cloneNode(true);
+            c.querySelectorAll('script,style,svg,link,meta,noscript').forEach(e => e.remove());
+            return c.outerHTML.slice(0, 12000);
+        }
+        """)
+    except Exception as e:
+        logger.warning(f"[Mapper][LLM] DOM snapshot failed: {e}")
+        return None
+
+    try:
+        client = AsyncGroq(api_key=api_key)
+        resp = await client.chat.completions.create(
+            model="meta-llama/llama-4-scout-17b-16e-instruct",
+            messages=[
+                {"role": "system", "content": _LLM_SYSTEM},
+                {"role": "user",   "content": f"URL: {page.url}\n\nHTML:\n{html}"},
+            ],
+            max_tokens=400,
+            temperature=0.1,
+        )
+        raw = resp.choices[0].message.content.strip()
+        # Strip markdown fences if present
+        if "```" in raw:
+            raw = raw.split("```")[1].lstrip("json").strip()
+        data = json.loads(raw)
+    except Exception as e:
+        logger.warning(f"[Mapper][LLM] Failed: {e}")
+        return None
+
+    if not data.get("has_chat"):
+        logger.info("[Mapper][LLM] LLM found no chat surface on this page")
+        return None
+
+    input_sel = data.get("input_selector", "textarea")
+    send_sel  = data.get("send_selector",  "button[type='submit']")
+    bot_sel   = data.get("bot_selector",   "div")
+    typ_sel   = data.get("typing_selector") or ".animate-spin"
+
+    logger.info(f"[Mapper][LLM] input={input_sel!r}  send={send_sel!r}  | {data.get('reasoning','')}")
+    return DiscoveredSurface(
+        url=page.url, chat_input=input_sel, send_button=send_sel,
+        bot_message=bot_sel, typing_indicator=typ_sel,
+        confidence=0.9, strategy="llm",
+    )
+
+
+# ── Detection pipeline ────────────────────────────────────────────────────────
+
+async def _pipeline(page) -> Optional[DiscoveredSurface]:
+    """Run stages in order; return on first success. Persist on discovery."""
+    await _wait(page)
+    surface = await _detect_heuristic(page)
+    if surface and surface.confidence >= 0.5:
+        _persist(page.url, surface)
+        return surface
+    surface = await _detect_proximity(page)
+    if surface:
+        _persist(page.url, surface)
+        return surface
+    surface = await _detect_llm(page)
+    if surface:
+        _persist(page.url, surface)
+    return surface
+
+
+def _persist(url: str, surface: DiscoveredSurface) -> None:
+    """Save discovered selectors to selector_cache.json keyed by domain."""
+    domain = urlparse(url).netloc
+    if domain:
+        save_to_cache(domain, surface.to_selector_dict())
+        logger.info(f"[Mapper] Selectors cached for domain: {domain} (strategy={surface.strategy})")
+
+
+# ── Public entry point ────────────────────────────────────────────────────────
 
 async def map_surface(url: str, target_name: str, target_type: str) -> dict:
     """
-    Crawls a multi-page website to discover the AI surface.
-    Strategy (in order):
-      1. Check if the landing page itself is a chat surface.
-      2. Crawl <a href> links and check prioritized candidates.
-      3. Probe common chatbot subpaths (for SPAs with no real links).
+    Crawl strategy:
+      1. Run detection pipeline on the landing page.
+      2. Follow <a href> internal links (chat-sounding paths prioritised).
+      3. Probe common chatbot subpaths (/chat, /assistant, etc.).
+      4. Fallback: return root URL with generic selectors if nothing found.
     """
-    logger.info("--- Module 1: Surface Mapper Agent (Production Mode) ---")
-    
+    logger.info("--- Module 1: Adaptive Surface Mapper ---")
     discovery_url = url
-    title = ""
-    
+    surface: Optional[DiscoveredSurface] = None
+
+    # ── Cache hit: skip detection entirely if domain was seen before ───────────
+    domain = urlparse(url).netloc
+    cached_sels = get_cached_selectors(url)
+    if cached_sels:
+        logger.info(f"[Mapper] Cache HIT for {domain} — skipping detection pipeline")
+        return {
+            "title":         domain,
+            "discovery_url": url,
+            "selectors":     cached_sels,
+            "confidence":    1.0,
+            "strategy":      "cached",
+            "transcript":    [],
+        }
+
     async with PlaywrightDriver(target_name=target_name, url=url) as driver:
-        logger.info(f"Crawling {url} for potential AI surfaces...")
-        generic_selectors = SELECTORS["generic"]
-        
-        # Step 1: Check the landing page itself
-        if await _is_chat_surface(driver._page, generic_selectors):
-            logger.info(f"AI Surface discovered on landing page: {url}")
-            discovery_url = url
+        page = driver._page
+
+        # ── Step 1: Landing page ────────────────────────────────────────────
+        surface = await _pipeline(page)
+        if surface:
+            logger.info(
+                f"[Mapper] Chat surface on landing page | "
+                f"strategy={surface.strategy} confidence={surface.confidence:.0%}"
+            )
         else:
-            # Step 2: Crawl <a href> links and try prioritized candidates
-            links = await driver._page.eval_on_selector_all("a[href]", "elements => elements.map(e => e.href)")
+            # ── Step 2: Internal links ──────────────────────────────────────
+            links = await page.eval_on_selector_all("a[href]", "els => els.map(e => e.href)")
             domain = urlparse(url).netloc
-            candidates = [l for l in links if urlparse(l).netloc == domain and l != url]
-            prioritized = [c for c in candidates if any(
-                k in c.lower() for k in ["support", "chat", "help", "assistant", "contact", "query", "ask", "bot"]
+            internal = [l for l in links if urlparse(l).netloc == domain and l.rstrip("/") != url.rstrip("/")]
+            priority = [l for l in internal if any(
+                k in l.lower() for k in ["chat", "support", "help", "assistant", "contact", "ask", "bot", "ai"]
             )]
-            # Put prioritized links first, then remaining internal links
-            ordered = list(dict.fromkeys(prioritized + candidates))
-            
-            found = False
-            for candidate in ordered[:8]:
-                logger.info(f"Checking candidate surface: {candidate}")
-                await driver._page.goto(candidate, wait_until="networkidle")
-                if await _is_chat_surface(driver._page, generic_selectors):
-                    logger.info(f"AI Surface discovered at: {candidate}")
-                    discovery_url = candidate
-                    found = True
+            ordered = list(dict.fromkeys(priority + internal))[:10]
+
+            for link in ordered:
+                logger.info(f"[Mapper] Checking link: {link}")
+                try:
+                    await page.goto(link, wait_until="networkidle", timeout=8000)
+                except Exception:
+                    continue
+                surface = await _pipeline(page)
+                if surface:
+                    discovery_url = link
+                    logger.info(f"[Mapper] Found at {link} | strategy={surface.strategy}")
                     break
-            
-            if not found:
-                # Step 3: Probe common chatbot paths (handles SPAs with no real <a> links)
-                logger.info("No surface found via links. Trying common chatbot paths...")
+
+            if not surface:
+                # ── Step 3: Common paths ────────────────────────────────────
+                logger.info("[Mapper] Probing common chatbot subpaths...")
                 base = url.rstrip("/")
-                for path in _COMMON_CHATBOT_PATHS:
+                for path in _COMMON_PATHS:
                     candidate = base + path
                     try:
-                        resp = await driver._page.goto(candidate, wait_until="networkidle", timeout=5000)
+                        resp = await page.goto(candidate, wait_until="networkidle", timeout=5000)
                         if resp and resp.status < 400:
-                            if await _is_chat_surface(driver._page, generic_selectors):
-                                logger.info(f"AI Surface discovered at common path: {candidate}")
+                            surface = await _pipeline(page)
+                            if surface:
                                 discovery_url = candidate
+                                logger.info(f"[Mapper] Found at common path: {candidate}")
                                 break
                     except Exception:
                         continue
-                else:
-                    # Nothing found anywhere — use root and let the prober handle it
-                    logger.warning("No chat surface found on any path. Using root URL.")
-                    discovery_url = url
 
-        title = await driver._page.title()
-        logger.info(f"Target Surface Title: '{title}' | Chat surface at: {discovery_url}")
-        
+        # ── Step 4: Fallback ────────────────────────────────────────────────
+        if not surface:
+            logger.warning("[Mapper] No surface found anywhere — using root + generic selectors")
+            g = SELECTORS["generic"]
+            surface = DiscoveredSurface(
+                url=url,
+                chat_input=g["chat_input"],
+                send_button=g["send_button"],
+                bot_message=g["bot_message"],
+                typing_indicator=g["typing_indicator"],
+                confidence=0.1,
+                strategy="fallback",
+            )
+
+        title = await page.title()
+        logger.info(
+            f"[Mapper] Done | title='{title}' url={discovery_url} "
+            f"strategy={surface.strategy} confidence={surface.confidence:.0%}"
+        )
+
     return {
-        "title": title,
+        "title":         title,
         "discovery_url": discovery_url,
-        "transcript": []
+        "selectors":     surface.to_selector_dict(),
+        "confidence":    surface.confidence,
+        "strategy":      surface.strategy,
+        "transcript":    [],
     }

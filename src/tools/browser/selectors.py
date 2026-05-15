@@ -69,7 +69,7 @@ SELECTORS: dict[str, TargetSelectors] = {
         "tab_button_template": ".tab-btn:has-text('{tab_label}')",
     },
     "generic": {
-        "chat_input":         "textarea[placeholder*='message' i], input[placeholder*='message' i], textarea[placeholder*='question' i], textarea[placeholder*='ask' i], input[placeholder*='query' i], input[placeholder*='command' i], textarea[placeholder*='command' i], .chat-input, #chat-input",
+        "chat_input":         "textarea[placeholder*='message' i], input[placeholder*='message' i], textarea[placeholder*='question' i], textarea[placeholder*='ask' i], input[placeholder*='query' i], input[placeholder*='command' i], textarea[placeholder*='command' i], textarea[placeholder*='type' i], p[contenteditable='true'], div[contenteditable='true'], rich-textarea, .chat-input, #chat-input, #prompt-textarea, [data-testid*='input'], [aria-label*='message' i], [aria-label*='prompt' i], [aria-label*='chat' i], [aria-label*='ask' i], [placeholder*='Gemini' i]",
         "send_button":        "button[type='submit'], button.bg-zinc-100, button:has(svg[class*='arrow']), button:has(svg[class*='send']), button:has(svg[class*='plane']), button:has(svg[data-lucide]), button:has-text('Send'), .send-button, #send-button, .send-btn",
         "bot_message":        "p.text-zinc-500, div.text-zinc-500, div.text-zinc-300, .message.bot, .assistant-message, [class*='assistant'], [class*='bot-message'], div.justify-start > div.shadow-md, div.justify-start > div > p",
         "typing_indicator":   "div:has-text('THINKING'), .typing, .loading, .spinner, [class*='typing'], .animate-spin",

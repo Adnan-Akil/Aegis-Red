@@ -39,6 +39,9 @@ class TargetProfile(BaseModel):
     known_constraints: list[str] = Field(default_factory=list)
     security_filter_detected: bool = False
     notes: str = ""
+    # Populated by the Surface Mapper — overrides hardcoded SELECTORS when set
+    discovered_selectors: dict | None = None
+    discovery_url: str | None = None        # actual chat page URL (may differ from url)
 
 
 # ---------------------------------------------------------------------------

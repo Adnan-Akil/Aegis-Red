@@ -11,6 +11,7 @@ from datetime import datetime
 
 from src.memory.schemas import AttackAttempt, TargetProfile, AttackPayload
 from src.tools.browser.playwright_driver import PlaywrightDriver
+from src.tools.browser.selectors import SELECTORS
 
 logger = logging.getLogger(__name__)
 
@@ -36,10 +37,17 @@ async def execute_attack(
     elif target.target_type == "hardened_tool":
         hardened_tab = "tool"
         
+    # Use discovery_url if the mapper found a specific subpage
+    nav_url = target.discovery_url or target.url
+
+    # Use dynamically discovered selectors if available; fall back to hardcoded
+    override_selectors = target.discovered_selectors or None
+
     async with PlaywrightDriver(
         target_name=target.name,
-        url=target.url,
-        hardened_tab=hardened_tab
+        url=nav_url,
+        hardened_tab=hardened_tab,
+        selector_override=override_selectors,
     ) as driver:
         # First turn
         response_text, _ = await driver.send_message(payload.template)
