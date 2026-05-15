@@ -180,7 +180,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                         className={`w-3 h-3 bg-[#121212] rounded-full absolute top-0.5 transition-transform ${headlessMode ? 'translate-x-4' : 'translate-x-0.5'}`}
                       />
                     </button>
-                    <div className="absolute top-0 right-full mr-3 w-48 p-2 bg-zinc-800 text-xs text-white rounded opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity text-right shadow-2xl z-50">
+                    <div className="absolute top-0 right-full mr-3 w-48 p-2 bg-zinc-800 text-xs text-white rounded opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity text-right">
                       Determines whether the bot runs the browser invisibly in the background (Headless) or opens a visible window (Headed).
                     </div>
                   </div>
@@ -199,7 +199,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                       onChange={(e) => setMaxMutations(parseInt(e.target.value))} 
                       className="w-full accent-zinc-400 h-1 bg-zinc-800 rounded-lg appearance-none cursor-pointer" 
                     />
-                    <div className="absolute top-0 right-full mr-3 w-48 p-2 bg-zinc-800 text-xs text-white rounded opacity-0 group-hover/mutation:opacity-100 pointer-events-none transition-opacity text-right shadow-2xl z-50">
+                    <div className="absolute top-0 right-full mr-3 w-48 p-2 bg-zinc-800 text-xs text-white rounded opacity-0 group-hover/mutation:opacity-100 pointer-events-none transition-opacity text-right">
                       Determines how many times the agent will attempt to dynamically mutate and retry a failed payload.
                     </div>
                   </div>
@@ -217,7 +217,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                       onChange={(e) => setMaxIterations(parseInt(e.target.value))} 
                       className="w-full accent-zinc-400 h-1 bg-zinc-800 rounded-lg appearance-none cursor-pointer" 
                     />
-                    <div className="absolute top-0 right-full mr-3 w-48 p-2 bg-zinc-800 text-xs text-white rounded opacity-0 group-hover/iteration:opacity-100 pointer-events-none transition-opacity text-right shadow-2xl z-50">
+                    <div className="absolute top-0 right-full mr-3 w-48 p-2 bg-zinc-800 text-xs text-white rounded opacity-0 group-hover/iteration:opacity-100 pointer-events-none transition-opacity text-right">
                       Maximum number of conversational turns the agent will take before aborting the current attack vector.
                     </div>
                   </div>
@@ -228,7 +228,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </header>
 
         {/* Scrollable Children Container */}
-        <div className="flex-1 overflow-hidden relative">
+        <div className="flex-1 overflow-y-auto overflow-x-hidden relative">
           {children}
         </div>
       </main>
