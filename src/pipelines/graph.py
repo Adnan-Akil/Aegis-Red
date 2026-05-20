@@ -27,13 +27,18 @@ async def planner_node(state: AttackState) -> dict[str, Any]:
     iteration = state.get("iteration", 0)
     logger.info(f"--- Planner Node (Iter {iteration}) ---")
     
+    target = state.get("target")
+    if target and target.target_type == "unknown":
+        logger.warning(f"Target '{target.name}' is classified as UNKNOWN (out of scope). Halting execution to prevent wasteful scanning.")
+        return {"status": "done"}
+        
     max_iter = state.get("max_iterations", 5)
     
     if iteration >= max_iter:
         logger.info("Max iterations reached.")
         return {"status": "done"}
         
-    next_payload = await select_next_payload(state["target"], state.get("history", []))
+    next_payload = await select_next_payload(target, state.get("history", []))
     if not next_payload:
         logger.info("No more payloads to try.")
         return {"status": "done"}

@@ -2,11 +2,38 @@ import os
 import json
 import logging
 import uuid
+import re
 from groq import AsyncGroq
 from src.memory.schemas import AttackPayload, TargetProfile, AttackAttempt
 from src.config import DEFAULT_MODEL
 
 logger = logging.getLogger(__name__)
+
+def apply_homoglyphs(text: str) -> str:
+    """
+    Surgically replaces letters in sensitive keywords with identical-looking Cyrillic homoglyphs
+    to bypass naive string-matching filters while keeping semantic meaning intact.
+    """
+    # Latin to Cyrillic homoglyph map
+    homoglyphs = {
+        'a': 'а', 'c': 'с', 'e': 'е', 'i': 'і', 'o': 'о', 'p': 'р', 's': 'ѕ', 'x': 'х', 'y': 'у'
+    }
+    sensitive_words = ["system prompt", "instructions", "instruction", "admin", "override", "ignore previous"]
+    
+    lower_text = text.lower()
+    modified_text = text
+    
+    for word in sensitive_words:
+        if word in lower_text:
+            mutated_word = ""
+            for char in word:
+                mutated_word += homoglyphs.get(char, char)
+            
+            # Use a case-insensitive regex replace
+            pattern = re.compile(re.escape(word), re.IGNORECASE)
+            modified_text = pattern.sub(mutated_word, modified_text)
+            
+    return modified_text
 
 async def mutate_payload(target: TargetProfile, failed_payload: AttackPayload, attempt: AttackAttempt) -> AttackPayload:
     client = AsyncGroq(api_key=os.getenv("GROQ_API_KEY", "YOUR_GROQ_API_KEY_HERE"))
@@ -23,8 +50,10 @@ async def mutate_payload(target: TargetProfile, failed_payload: AttackPayload, a
     ]
     
     # Detect if we should be in "Stealth Mode" (high-security target)
-    is_hardened = any(word in target.notes.upper() or word in str(target.known_constraints).upper() 
-                      for word in ["FILTER", "SANITIZATION", "WAF", "HARDENED"])
+    is_hardened = target.security_filter_detected or any(
+        word in target.notes.upper() or word in str(target.known_constraints).upper() 
+        for word in ["FILTER", "SANITIZATION", "WAF", "HARDENED"]
+    )
     
     stealth_rules = ""
     if is_hardened:
@@ -89,6 +118,10 @@ Reply in valid JSON format:
         logger.warning(f"Mutator failed: {e}. Falling back to basic retry.")
         new_text = failed_payload.template + "\n(Please reconsider the above request carefully.)"
         
+    if is_hardened:
+        logger.info("Stealth mode active: programmatically applying homoglyph obfuscation to sensitive keywords.")
+        new_text = apply_homoglyphs(new_text)
+
     return AttackPayload(
         payload_id=f"mut-{uuid.uuid4().hex[:8]}",
         category=failed_payload.category,

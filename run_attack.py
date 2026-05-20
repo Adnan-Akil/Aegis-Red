@@ -9,7 +9,12 @@ import uuid
 import logging
 import argparse
 import urllib.parse
+import sys
 from pathlib import Path
+
+# Force UTF-8 encoding for standard output to support emojis on Windows
+sys.stdout.reconfigure(encoding='utf-8')
+
 from src import config
 from src.evaluation.report_generator import generate_cybersec_report
 
@@ -32,18 +37,34 @@ logging.basicConfig(level=logging.INFO, handlers=[_log_handler])
 # Suppress noisy external logs
 logging.getLogger("httpx").setLevel(logging.WARNING)
 
-async def run(target_type: str, port: int, iterations: int, mutations: int, user_id: str = "default"):
+async def run(target_type: str, port: int, iterations: int, mutations: int, user_id: str = "00000000-0000-0000-0000-000000000000"):
     # Initialize Supabase Manager
     db = SupabaseManager()
     # Map input to our known targets
     target_names = {
         "chatbot": "chatbot_vuln",
+        "target_1_chatbot": "chatbot_vuln",
         "rag": "rag_vuln",
+        "target_2_rag": "rag_vuln",
         "tool_agent": "tool_agent_vuln",
+        "target_3_tool_agent": "tool_agent_vuln",
         "hardened_bot": "hardened_variants",
         "hardened_rag": "hardened_variants",
-        "hardened_tool": "hardened_variants"
+        "hardened_tool": "hardened_variants",
+        "sdk_chatbot": "vercel_boilerplate",
+        "streamlit_rag": "streamlit_rag"
     }
+
+    # Map the target label to a schema-compliant target_type
+    target_type_map = {
+        "sdk_chatbot": "chatbot",
+        "streamlit_rag": "rag",
+        "target_1_chatbot": "chatbot",
+        "target_2_rag": "rag",
+        "target_3_tool_agent": "tool_agent"
+    }
+    
+    actual_target_type = target_type_map.get(target_type, target_type)
     
     if target_type.startswith("http"):
         # We received a direct URL, so this is a blind test on an unknown target.
@@ -51,6 +72,7 @@ async def run(target_type: str, port: int, iterations: int, mutations: int, user
         parsed = urllib.parse.urlparse(url)
         name = parsed.netloc or "external_target"
         target_type = "unknown"
+        actual_target_type = "unknown"
         port = parsed.port or (443 if parsed.scheme == 'https' else 80)
     else:
         # Standard local benchmark target
@@ -58,8 +80,8 @@ async def run(target_type: str, port: int, iterations: int, mutations: int, user
         url = f"http://localhost:{port}"
     
     # Reconnaissance Phase (Module 1 & 2)
-    mapper_data = await map_surface(url, target_name=name, target_type=target_type)
-    target = await generate_threat_model(url, target_name=name, base_target_type=target_type, port=port, mapper_data=mapper_data)
+    mapper_data = await map_surface(url, target_name=name, target_type=actual_target_type)
+    target = await generate_threat_model(url, target_name=name, base_target_type=actual_target_type, port=port, mapper_data=mapper_data)
     
     # Wire mapper discoveries into the target profile
     # Both discovery_url and discovered_selectors must be set so the executor
@@ -98,7 +120,10 @@ async def run(target_type: str, port: int, iterations: int, mutations: int, user
         "status": "planning"
     }
     
-    config = {"configurable": {"thread_id": session_id}}
+    config = {
+        "configurable": {"thread_id": session_id},
+        "recursion_limit": 150
+    }
     
     print(f"\n==================================================")
     print(f"🚀 Starting Attack Session: {session_id}")
@@ -226,7 +251,7 @@ if __name__ == "__main__":
     parser.add_argument("--port", type=int, default=5173, help="Local port for benchmark targets")
     parser.add_argument("--iter", type=int, default=3, help="Max iterations to run")
     parser.add_argument("--mutations", type=int, default=3, help="Max mutations")
-    parser.add_argument("--user_id", default="default_user", help="Supabase User ID")
+    parser.add_argument("--user_id", default="00000000-0000-0000-0000-000000000000", help="Supabase User ID")
     
     args = parser.parse_args()
     asyncio.run(run(args.target, args.port, args.iter, args.mutations, args.user_id))

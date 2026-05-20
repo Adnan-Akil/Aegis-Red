@@ -92,6 +92,7 @@ class PlaywrightDriver:
         self._browser: Browser | None = None
         self._context: BrowserContext | None = None
         self._page: Page | None = None
+        self.network_traces: list[dict] = []
 
     # ------------------------------------------------------------------
     # Context manager
@@ -111,6 +112,70 @@ class PlaywrightDriver:
             viewport={"width": 1280, "height": 900},
         )
         self._page = await self._context.new_page()
+        
+        async def _log_response(response):
+            if response.request.resource_type in ["fetch", "xhr"]:
+                try:
+                    if response.status == 200:
+                        content_type = response.headers.get("content-type", "").lower()
+                        # Limit to avoid blocking on huge files / media
+                        content_length = int(response.headers.get("content-length", 0))
+                        if content_length > 1024000: # 1MB limit
+                            return
+                        
+                        body = None
+                        if "application/json" in content_type:
+                            body = await response.json()
+                        elif "text/" in content_type or "javascript" in content_type:
+                            body_text = await response.text()
+                            if len(body_text) < 10000:
+                                body = body_text
+                                
+                        if body:
+                            self.network_traces.append({
+                                "url": response.url,
+                                "method": response.request.method,
+                                "body": body
+                            })
+                except Exception:
+                    pass
+        
+        def _log_websocket(ws):
+            url = ws.url
+            def _on_frame_received(payload):
+                try:
+                    if isinstance(payload, bytes):
+                        text = payload.decode("utf-8", errors="ignore")
+                    else:
+                        text = str(payload)
+                    if 0 < len(text) < 20000:
+                        self.network_traces.append({
+                            "url": url,
+                            "method": "WS_RECV",
+                            "body": text
+                        })
+                except Exception:
+                    pass
+            def _on_frame_sent(payload):
+                try:
+                    if isinstance(payload, bytes):
+                        text = payload.decode("utf-8", errors="ignore")
+                    else:
+                        text = str(payload)
+                    if 0 < len(text) < 20000:
+                        self.network_traces.append({
+                            "url": url,
+                            "method": "WS_SENT",
+                            "body": text
+                        })
+                except Exception:
+                    pass
+            ws.on("framereceived", _on_frame_received)
+            ws.on("framesent", _on_frame_sent)
+
+        self._page.on("response", _log_response)
+        self._page.on("websocket", _log_websocket)
+        
         await self._navigate()
         return self
 
@@ -324,6 +389,22 @@ class PlaywrightDriver:
             results.append({"role": "assistant", "content": text})
 
         return results
+
+    async def get_network_traces(self) -> list[dict]:
+        """Return captured JSON network responses (fetch/xhr)."""
+        return self.network_traces
+
+    async def get_page_metadata(self) -> dict:
+        """Return page title and stream/framework detection tags."""
+        if not self._page:
+            return {}
+        title = await self._page.title()
+        html = await self._page.content()
+        return {
+            "title": title,
+            "has_streamlit": "streamlit" in html.lower() or "stapp" in html.lower() or "stchatinput" in html.lower(),
+            "has_vercel": "vercel" in html.lower(),
+        }
 
     async def reset_conversation(self) -> None:
         """Hard-reset by reloading the page — clears React state."""

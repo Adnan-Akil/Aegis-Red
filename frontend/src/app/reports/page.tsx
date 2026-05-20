@@ -1,12 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Download, Loader2, ShieldCheck, Zap, Fingerprint, Activity, Terminal } from "lucide-react";
+import { Download, Loader2, ShieldCheck, Zap, Fingerprint, Activity, Terminal, Trash2, AlertTriangle } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 
 export default function ReportsPage() {
   const [reports, setReports] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [clearing, setClearing] = useState(false);
+  const [clearError, setClearError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchReports = async () => {
@@ -51,6 +54,59 @@ export default function ReportsPage() {
     }
   };
 
+  const handleClearAll = async () => {
+    setClearing(true);
+    setClearError(null);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Step 1: Fetch the exact IDs to delete (scoped to this user)
+      const { data: rows, error: fetchError } = await supabase
+        .from("attack_sessions")
+        .select("id")
+        .eq("user_id", user.id);
+
+      if (fetchError) throw fetchError;
+      if (!rows || rows.length === 0) { setReports([]); setShowConfirm(false); return; }
+
+      const ids = rows.map((r) => r.id);
+
+      // Step 2: Delete by primary key
+      const { error: deleteError } = await supabase
+        .from("attack_sessions")
+        .delete()
+        .in("id", ids);
+
+      if (deleteError) throw deleteError;
+
+      // Step 3: Verify the rows are actually gone — don't trust !error alone (RLS can silently block)
+      const { count, error: verifyError } = await supabase
+        .from("attack_sessions")
+        .select("*", { count: "exact", head: true })
+        .eq("user_id", user.id);
+
+      if (verifyError) throw verifyError;
+
+      if (count === 0) {
+        setReports([]);
+        setShowConfirm(false);
+      } else {
+        // Delete was silently blocked (RLS policy missing for DELETE)
+        setClearError(
+          `Delete was blocked by Supabase RLS. ${count} record(s) still exist. ` +
+          `Go to Supabase Dashboard → Table Editor → attack_sessions → RLS Policies ` +
+          `and add a DELETE policy: USING (auth.uid() = user_id)`
+        );
+      }
+    } catch (err: any) {
+      console.error("Clear error", err);
+      setClearError(err?.message || "An unexpected error occurred.");
+    } finally {
+      setClearing(false);
+    }
+  };
+
   const getStatusType = (status: string, verdict: string) => {
     if (status === "running") return "action";
     const v = (verdict || "").toLowerCase();
@@ -69,12 +125,58 @@ export default function ReportsPage() {
 
   return (
     <div className="flex h-full w-full flex-col bg-transparent font-['Elms_Sans']">
+
+      {/* Confirmation Modal */}
+      {showConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
+          <div className="relative w-full max-w-md rounded-2xl border border-red-500/20 bg-zinc-950 p-8 shadow-2xl">
+            <div className="mb-6 flex flex-col items-center gap-4 text-center">
+              <div className="flex h-14 w-14 items-center justify-center rounded-full border border-red-500/30 bg-red-500/10">
+                <AlertTriangle className="h-6 w-6 text-red-400" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold tracking-tight text-white">Purge All Reports?</h3>
+                <p className="mt-2 text-sm leading-relaxed text-zinc-500">
+                  This will permanently delete <span className="font-mono text-zinc-300">{reports.length}</span> report{reports.length !== 1 ? "s" : ""} from the database. This action{" "}
+                  <span className="font-semibold text-red-400">cannot be undone</span>.
+                </p>
+              </div>
+            </div>
+            {clearError && (
+              <div className="mb-4 rounded-lg border border-red-500/30 bg-red-500/10 p-3">
+                <p className="text-xs leading-relaxed text-red-400">{clearError}</p>
+              </div>
+            )}
+            <div className="flex gap-3">
+              <button
+                onClick={() => { setShowConfirm(false); setClearError(null); }}
+                className="flex-1 rounded-xl border border-zinc-800 bg-zinc-900 py-2.5 text-sm font-medium text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-white"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleClearAll}
+                disabled={clearing}
+                className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-red-500/30 bg-red-500/10 py-2.5 text-sm font-semibold text-red-400 transition-colors hover:bg-red-500/20 hover:text-red-300 disabled:opacity-50"
+              >
+                {clearing ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Trash2 className="h-4 w-4" />
+                )}
+                {clearing ? "Purging..." : "Confirm Purge"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="shrink-0 px-8 pt-0 pb-6">
         <h2 className="text-3xl font-semibold tracking-tight text-white">Audit Reports</h2>
         <p className="text-sm uppercase tracking-wide text-zinc-500">Finalized Security Assessments</p>
       </div>
 
-      <div className="flex-1 overflow-y-auto overflow-x-hidden px-8 pb-20 no-scrollbar">
+      <div className="flex-1 overflow-y-auto overflow-x-hidden px-8 pb-6 no-scrollbar">
         {reports.length === 0 ? (
           <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-zinc-800/50 bg-zinc-950/20 py-20">
             <ShieldCheck className="mb-4 h-12 w-12 text-zinc-700" />
@@ -145,6 +247,20 @@ export default function ReportsPage() {
           </div>
         )}
       </div>
+
+      {/* Clear All Button — centered at the bottom */}
+      {reports.length > 0 && (
+        <div className="shrink-0 flex justify-center py-8 px-8">
+          <button
+            id="clear-all-reports-btn"
+            onClick={() => setShowConfirm(true)}
+            className="flex items-center gap-2.5 rounded-xl border border-red-500/20 bg-red-500/5 px-6 py-3 font-mono text-xs font-semibold uppercase tracking-widest text-red-500/70 transition-all duration-200 hover:border-red-500/40 hover:bg-red-500/10 hover:text-red-400"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+            Purge All Reports
+          </button>
+        </div>
+      )}
     </div>
   );
 }

@@ -119,6 +119,7 @@ class DiscoveredSurface:
             "bot_message":         self.bot_message,
             "typing_indicator":    self.typing_indicator,
             "tab_button_template": "",
+            "discovery_url":       self.url,
         }
 
 
@@ -126,7 +127,9 @@ class DiscoveredSurface:
 
 async def _wait(page, timeout: int = 5000) -> None:
     try:
-        await page.wait_for_load_state("networkidle", timeout=timeout)
+        await page.wait_for_load_state("domcontentloaded", timeout=timeout)
+        # Give JS frameworks an extra moment to render the UI
+        await page.wait_for_timeout(2000)
     except Exception:
         pass
 
@@ -149,7 +152,9 @@ async def _detect_heuristic(page) -> Optional[DiscoveredSurface]:
     # Give SPA a moment to render
     try:
         await page.wait_for_selector(
-            ", ".join(_INPUT_CANDIDATES[:8]), timeout=3000, state="attached"
+            "textarea, input[type='text'], [contenteditable='true'], [role='textbox']", 
+            timeout=5000, 
+            state="attached"
         )
     except Exception:
         pass
@@ -354,10 +359,15 @@ async def map_surface(url: str, target_name: str, target_type: str) -> dict:
     cached_sels = get_cached_selectors(url)
     if cached_sels:
         logger.info(f"[Mapper] Cache HIT for {domain} — skipping detection pipeline")
+        
+        # Copy so we don't mutate the cached dict; extract discovery_url separately
+        sels_copy = dict(cached_sels)
+        cached_url = sels_copy.pop("discovery_url", url)
+        
         return {
             "title":         domain,
-            "discovery_url": url,
-            "selectors":     cached_sels,
+            "discovery_url": cached_url,
+            "selectors":     sels_copy,
             "confidence":    1.0,
             "strategy":      "cached",
             "transcript":    [],

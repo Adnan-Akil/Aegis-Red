@@ -19,6 +19,16 @@ TARGET_CONFIG = {
         "dir": "benchmark_apps/hardened_variants",
         "backend_port": 8002
     },
+    "sdk_chatbot": {
+        "dir": "test_targets/vercel_boilerplate",
+        "type": "static",
+        "port": 8003
+    },
+    "streamlit_rag": {
+        "dir": "test_targets/streamlit_rag",
+        "type": "streamlit",
+        "port": 8501
+    }
 }
 
 processes = []
@@ -113,42 +123,66 @@ def main():
     print(f"🚀 Initializing Unified Runner: {args.target}")
     print("==================================================")
 
-    # Clean ports before starting
-    kill_process_on_port(config["backend_port"])
-    kill_process_on_port(5173)
+    # 1. Handle different target types
+    if config.get("type") == "static":
+        print(f"[*] Starting Static Server for {args.target} on port {config['port']}...")
+        # Use python's http.server for simplicity
+        proc = subprocess.Popen(
+            [venv_python, "-m", "http.server", str(config["port"])],
+            cwd=base_dir,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL
+        )
+        processes.append(proc)
+        wait_for_server(f"http://localhost:{config['port']}/", "Static Server")
+        target_port = config["port"]
 
-    # 1. Start Backend
-    backend_dir = os.path.join(base_dir, "backend")
-    print(f"[*] Starting Backend on port {config['backend_port']}...")
-    
-    backend_proc = subprocess.Popen(
-        [venv_python, "-m", "uvicorn", "main:app", "--port", str(config["backend_port"])],
-        cwd=backend_dir,
-        stdout=subprocess.DEVNULL, # Hide backend logs so terminal is clean
-        stderr=subprocess.DEVNULL
-    )
-    processes.append(backend_proc)
+    elif config.get("type") == "streamlit":
+        print(f"[*] Starting Streamlit App on port {config['port']}...")
+        proc = subprocess.Popen(
+            [venv_python, "-m", "streamlit", "run", "app.py", "--server.port", str(config["port"]), "--server.headless", "true"],
+            cwd=base_dir,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL
+        )
+        processes.append(proc)
+        wait_for_server(f"http://localhost:{config['port']}/", "Streamlit App")
+        target_port = config["port"]
 
-    # 2. Start Frontend
-    frontend_dir = os.path.join(base_dir, "frontend")
-    print("[*] Starting React Frontend on port 5173...")
+    else:
+        # Default behavior for Vite/FastAPI targets
+        kill_process_on_port(config["backend_port"])
+        kill_process_on_port(5173)
 
-    # --strictPort forces Vite to fail if 5173 is taken, preventing random port assignment
-    frontend_proc = subprocess.Popen(
-        [npm_cmd, "run", "dev", "--", "--port", "5173", "--strictPort"],
-        cwd=frontend_dir
-    )
-    processes.append(frontend_proc)
+        # Start Backend
+        backend_dir = os.path.join(base_dir, "backend")
+        print(f"[*] Starting Backend on port {config['backend_port']}...")
+        backend_proc = subprocess.Popen(
+            [venv_python, "-m", "uvicorn", "main:app", "--port", str(config["backend_port"])],
+            cwd=backend_dir,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL
+        )
+        processes.append(backend_proc)
 
-    # 3. Wait for both servers to accept connections
-    wait_for_server(f"http://127.0.0.1:{config['backend_port']}/", "Backend")
-    wait_for_server("http://localhost:5173/", "Frontend")
+        # Start Frontend
+        frontend_dir = os.path.join(base_dir, "frontend")
+        print("[*] Starting React Frontend on port 5173...")
+        frontend_proc = subprocess.Popen(
+            [npm_cmd, "run", "dev", "--", "--port", "5173", "--strictPort"],
+            cwd=frontend_dir
+        )
+        processes.append(frontend_proc)
+
+        wait_for_server(f"http://127.0.0.1:{config['backend_port']}/", "Backend")
+        wait_for_server("http://localhost:5173/", "Frontend")
+        target_port = "5173"
 
     # 4. Execute the Red Team Agent!
     print(f"\n🤖 Launching Autonomous Agent against local {args.target}...\n")
     try:
         subprocess.run(
-            [venv_python, "run_attack.py", args.target, "--port", "5173", "--iter", str(args.iter)],
+            [venv_python, "run_attack.py", args.target, "--port", str(target_port), "--iter", str(args.iter)],
             check=True
         )
     except KeyboardInterrupt:

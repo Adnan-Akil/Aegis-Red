@@ -32,10 +32,16 @@ class SupabaseManager:
             "target_type": target_type,
             "status": "running",
         }
-        response = self.supabase.table("attack_sessions").insert(data).execute()
-        if response.data:
-            self.session_id = response.data[0]["id"]
-            logger.info(f"Supabase: Created session {self.session_id}")
+        try:
+            response = self.supabase.table("attack_sessions").insert(data).execute()
+            if response.data:
+                self.session_id = response.data[0]["id"]
+                logger.info(f"Supabase: Created session {self.session_id}")
+                return self.session_id
+        except Exception as e:
+            logger.warning(f"Failed to create attack session in Supabase (likely invalid user_id). Proceeding locally. Error: {e}")
+            import uuid
+            self.session_id = str(uuid.uuid4())
             return self.session_id
         raise Exception("Failed to create attack session in Supabase")
 
@@ -50,7 +56,10 @@ class SupabaseManager:
             "description": description,
             "type": log_type
         }
-        self.supabase.table("execution_logs").insert(data).execute()
+        try:
+            self.supabase.table("execution_logs").insert(data).execute()
+        except Exception as e:
+            logger.warning(f"Supabase add_log failed: {e}")
 
     def add_finding(self, finding_type: str, extracted_value: str):
         """Adds a critical finding to the current session."""
@@ -62,7 +71,10 @@ class SupabaseManager:
             "type": finding_type,
             "extracted_value": extracted_value
         }
-        self.supabase.table("findings").insert(data).execute()
+        try:
+            self.supabase.table("findings").insert(data).execute()
+        except Exception as e:
+            logger.warning(f"Supabase add_finding failed: {e}")
 
     def complete_session(self, verdict: str, overall_score: float, payload_content: str = "", report_content: str = ""):
         """Finalizes the session and uploads the payload trace and formal report."""
@@ -111,5 +123,8 @@ class SupabaseManager:
             # Note: The 'report_file_url' column must exist in the attack_sessions table!
             update_data["report_file_url"] = report_url
 
-        self.supabase.table("attack_sessions").update(update_data).eq("id", self.session_id).execute()
-        logger.info(f"Supabase: Session {self.session_id} completed with verdict {verdict}")
+        try:
+            self.supabase.table("attack_sessions").update(update_data).eq("id", self.session_id).execute()
+            logger.info(f"Supabase: Session {self.session_id} completed with verdict {verdict}")
+        except Exception as e:
+            logger.warning(f"Supabase complete_session failed: {e}")
