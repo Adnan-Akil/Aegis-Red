@@ -73,15 +73,35 @@ _SEND_CANDIDATES = [
 ]
 
 _BOT_CANDIDATES = [
+    # Explicit data attributes (most reliable)
     "[data-testid*='response']",
     "[data-testid*='assistant']",
     "[data-testid*='message']",
+    "[data-role='assistant']",
+    "[data-message-author-role='assistant']",
     "[aria-label*='response' i]",
+    # Class-based — named patterns
     "[class*='assistant']",
     "[class*='bot-message']",
+    "[class*='bot_message']",
     ".message.bot",
     ".assistant-message",
+    ".ai-message",
+    ".chat-message.assistant",
+    ".response-message",
+    # Common flex/layout chat structures
     "div.justify-start > div",
+    "div.flex-col > div.flex > div",          # message row → bubble
+    "div.flex.gap-3 > div",                    # gap-3 flex row
+    "[class*='message'][class*='ai']",
+    "[class*='message'][class*='bot']",
+    "[class*='response']",
+    # Tailwind utility combos used by tool-agent style apps
+    "div.text-indigo-400 > div",
+    "div.text-indigo-400 > div.flex-1",
+    "div.flex.gap-3.text-indigo-400 > div.flex-1",
+    # Streamlit-specific
+    "[data-testid='stChatMessage']",
 ]
 
 _TYPING_CANDIDATES = [

@@ -6,6 +6,7 @@ Selects the next attack payload to try based on the target profile and session h
 """
 import logging
 from src.memory.schemas import TargetProfile, AttackPayload, AttackAttempt, EvaluationResult
+from src.memory.sqlite_manager import SQLiteManager
 from src.tools.attacks.registry import AttackRegistry
 
 logger = logging.getLogger(__name__)
@@ -14,10 +15,7 @@ import os
 import json
 from groq import AsyncGroq
 from src.config import DEFAULT_MODEL
-from src.memory.schemas import TargetProfile, AttackPayload, AttackAttempt, EvaluationResult
-from src.tools.attacks.registry import AttackRegistry
 
-logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # RAG Dynamic Exfiltration Chain — Turn 2 command pool
@@ -62,16 +60,26 @@ async def select_next_payload(
     """
     Selects the next attack payload to try by using an LLM to analyze the target's 
     past defenses and choose the most promising strategy.
-    For RAG/hardened_rag targets, jailbreak payloads are automatically grafted with
+    For RAG targets, jailbreak payloads are automatically grafted with
     a Turn 2 exfiltration command (Dynamic Exfiltration Chain).
     """
     logger.info("--- Module 3: Strategic Planner Agent ---")
-    
-    # 1. Get all payloads relevant to this target type
-    available_payloads = AttackRegistry.get_for_target(target.target_type)
+
+    # 1. Load successful mutations from previous sessions and prepend to the pool
+    memorized: list[AttackPayload] = []
+    try:
+        async with SQLiteManager() as db:
+            memorized = await db.get_successful_mutations_by_type(target.target_type, target.target_id)
+        if memorized:
+            logger.info(f"[Memory] Loaded {len(memorized)} successful mutation(s) from past sessions (type='{target.target_type}').") 
+    except Exception as exc:
+        logger.warning(f"[Memory] Could not load past mutations: {exc}")
+
+    # 2. Get all payloads relevant to this target type
+    available_payloads = memorized + AttackRegistry.get_for_target(target.target_type)
     tried_ids = {attempt.payload_id for attempt, _ in history}
     remaining_payloads = [p for p in available_payloads if p.payload_id not in tried_ids]
-    
+
     if not remaining_payloads:
         logger.warning("No more payloads in the registry for this target type.")
         return None
@@ -151,7 +159,7 @@ def _maybe_graft_exfiltration(
     The exfiltration strategy is rotated deterministically based on history length
     so that Base64, French, and JSON extraction are each attempted across iterations.
     """
-    is_rag_target = target.target_type in ("rag", "hardened_rag")
+    is_rag_target = target.target_type == "rag"
     is_jailbreak = payload.category == "jailbreak"
     already_has_turns = bool(payload.follow_up_turns)
 

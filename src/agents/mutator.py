@@ -113,6 +113,11 @@ Reply in valid JSON format:
         content = json.loads(response.choices[0].message.content)
         new_text = content.get("mutated_text", failed_payload.template)
         strategy = content.get("mutation_strategy", "fallback")
+        # Guard: LLM occasionally returns a dict/list for mutated_text instead of a string.
+        # Coerce to str so AttackPayload(template=...) never crashes with a ValidationError.
+        if not isinstance(new_text, str):
+            logger.warning(f"Mutator: mutated_text was {type(new_text).__name__}, not str — coercing to string.")
+            new_text = json.dumps(new_text) if isinstance(new_text, (dict, list)) else str(new_text)
         logger.info(f"Mutation strategy: {strategy}")
     except Exception as e:
         logger.warning(f"Mutator failed: {e}. Falling back to basic retry.")

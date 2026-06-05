@@ -108,15 +108,6 @@ async def execute_attack(
     
     start_time = time.monotonic()
 
-    # Map target_type to hardened tab if applicable
-    hardened_tab = None
-    if target.target_type == "hardened_bot":
-        hardened_tab = "bot"
-    elif target.target_type == "hardened_rag":
-        hardened_tab = "rag"
-    elif target.target_type == "hardened_tool":
-        hardened_tab = "tool"
-
     nav_url = target.discovery_url or target.url
     override_selectors = target.discovered_selectors or None
 
@@ -126,7 +117,6 @@ async def execute_attack(
         async with PlaywrightDriver(
             target_name=target.name,
             url=nav_url,
-            hardened_tab=hardened_tab,
             selector_override=override_selectors,
         ) as driver:
             # First turn
