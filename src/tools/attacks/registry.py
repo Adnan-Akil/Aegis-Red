@@ -35,15 +35,12 @@ _RAG_CONTEXT_TAGS = {"rag", "tfidf-tuned", "semantic-lure", "dlp-bypass"}
 
 # Map target_type → which categories are most relevant
 _TARGET_CATEGORY_MAP: dict[str, list[str]] = {
-    "chatbot":        ["jailbreak", "escalation"],
-    "rag":            ["leakage", "jailbreak"],
-    "tool_agent":     ["tool_abuse", "escalation"],
-    "hardened_bot":   ["jailbreak", "escalation", "obfuscation"],
-    "hardened_rag":   ["leakage", "jailbreak", "escalation", "obfuscation"],
-    "hardened_tool":  ["tool_abuse", "escalation", "obfuscation"],
+    "chatbot":    ["jailbreak", "escalation", "obfuscation"],
+    "rag":        ["leakage", "jailbreak", "escalation", "obfuscation"],
+    "tool_agent": ["tool_abuse", "escalation", "obfuscation"],
     # Unknown: start with jailbreaks + generic probes only.
     # Leakage payloads that assume enterprise RAG context are excluded here.
-    "unknown":        ["jailbreak", "escalation", "obfuscation"],
+    "unknown":    ["jailbreak", "escalation", "obfuscation"],
 }
 
 
@@ -91,7 +88,7 @@ class AttackRegistry:
         for cat in categories:
             for p in cls.get_by_category(cat):
                 # Strip RAG-context payloads from non-RAG targets
-                if cat == "leakage" and target_type not in ("rag", "hardened_rag"):
+                if cat == "leakage" and target_type not in ("rag",):
                     if any(t in _RAG_CONTEXT_TAGS for t in p.tags):
                         continue  # Skip — assumes enterprise RAG context
                 result.append(p)
