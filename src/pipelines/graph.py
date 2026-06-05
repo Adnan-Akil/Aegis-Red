@@ -105,11 +105,34 @@ async def evaluator_node(state: AttackState) -> dict[str, Any]:
     else:
         next_status = "planning"
         
+    # ── Dynamic target-type re-classification (Strategy 1) ─────────────────
+    target = state.get("target")
+    if target and target.target_type not in ("rag",):
+        import re
+        response_lower = attempt.response_text.lower()
+        
+        # Look for explicit RAG indicator keywords/patterns in the bot's response
+        rag_keywords = [
+            "document-based", "retrieve", "retrieved", "knowledge base", "internal document",
+            "company document", "source document", "context document", "onboarding document",
+            "confidential document", "internal database", "citation", "refer to source",
+            "employee handbook", "internal wiki", "doc-", "from the files"
+        ]
+        
+        has_citations = bool(re.search(r"\[(?:source|doc|document|ref|\d+)\]", attempt.response_text, re.IGNORECASE))
+        has_file_extensions = bool(re.search(r"\b\w+\.(?:pdf|docx|xlsx|txt|md)\b", response_lower))
+        
+        if any(kw in response_lower for kw in rag_keywords) or has_citations or has_file_extensions:
+            logger.info(f"[Orchestrator] DYNAMIC CLASSIFICATION UPGRADE: Detected RAG indicators in response! Shifting target_type from '{target.target_type}' to 'rag'.")
+            target.target_type = "rag"
+            target.notes = (target.notes + "\n[RECON_UPGRADE] Dynamically re-classified as RAG target based on runtime response analysis.").strip()
+        
     return {
         "current_evaluation": eval_result,
         "history": [(attempt, eval_result)],
         "findings": new_findings,
-        "status": next_status
+        "status": next_status,
+        "target": target
     }
 
 async def mutator_node(state: AttackState) -> dict[str, Any]:
