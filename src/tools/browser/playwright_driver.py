@@ -71,8 +71,12 @@ class PlaywrightDriver:
             from .selector_manager import get_cached_selectors
             from urllib.parse import urlparse
             path = urlparse(url).path.rstrip("/")
+            # NOTE: /assistant path-hint removed — the old tool_agent_vuln Tailwind app
+            # that used div.text-indigo-400 selectors has been deleted. Keeping the hint
+            # causes stale selectors to fire on any real app at /assistant.
+            # The runtime fallback-probe in _wait_for_response will discover the real
+            # bot_message selector automatically.
             _PATH_HINTS: dict[str, str] = {
-                "/assistant": "tool_agent_vuln",
                 "/helpdesk":  "rag_vuln",
                 "/chat":      "chatbot_vuln",
             }
@@ -267,6 +271,18 @@ class PlaywrightDriver:
 
         # Wait for bot response
         response_text = await self._wait_for_response(before_count, page)
+        
+        # Guard: if response is empty, suspiciously short, or is just the
+        # typing indicator's dot animation ('...' / '• • •' / similar),
+        # don't accept it — mark as no-response.
+        _is_typing_artifact = (
+            not response_text
+            or len(response_text.strip()) < 15
+            or all(c in ".•· \u2022\u00b7" for c in response_text.strip())
+        )
+        if _is_typing_artifact:
+            response_text = "[AEGIS_NO_RESPONSE: Bot returned empty response — result invalid]"
+            
         duration_ms = int((time.monotonic() - t_start) * 1000)
 
         logger.info(
@@ -288,16 +304,33 @@ class PlaywrightDriver:
         bot_selector    = sel["bot_message"]
         typing_selector = sel["typing_indicator"]
 
-        # Broad fallback selectors tried when bot_message never matches
+        # Broad fallback selectors tried when bot_message never matches.
+        # Ordered from most specific to most general.
         _FALLBACK_BOT_SELECTORS = [
+            # LLM chat-specific elements
             "model-response p", "model-response", ".model-response-text",
             "[data-message-author-role='assistant'] p",
             "[data-message-author-role='assistant']",
+            "[data-role='assistant']",
+            # Markdown / prose renderers
             ".markdown p", ".markdown", "[class*='prose'] p",
             ".agent-turn p", ".response-content p",
             "message-content p", "message-content",
+            # Class-name patterns
             "[class*='response'] p", "[class*='message'] p",
+            "[class*='assistant'] p", "[class*='assistant']",
+            "[class*='bot-message']", "[class*='bot_message']",
+            ".ai-message", ".chat-message.assistant",
+            # Tailwind flex-based layouts (tool-agent style)
+            "div.text-indigo-400 > div.flex-1",
+            "div.flex.gap-3.text-indigo-400 > div.flex-1",
+            "div.text-indigo-400 > div",
+            "div.justify-start > div",
+            "div.flex.gap-3 > div",
+            # Streamlit
+            "[data-testid='stChatMessage']",
         ]
+
 
         elapsed          = 0
         selector_probed  = False  # whether we've tried fallback selectors yet
@@ -311,8 +344,11 @@ class PlaywrightDriver:
                 messages = scope.locator(bot_selector)
                 last     = messages.last
                 text     = (await last.inner_text()).strip()
-                # Settle logic: wait if text is still streaming in
-                if len(text) < 10 or text.endswith(">"):
+                # Settle logic: wait if text is still streaming in or is only typing dots.
+                # We must NOT return a dot-only string — that's the typing indicator bubble,
+                # not a real response (e.g. hardened_variants bubble.assistant.typing).
+                _is_dots = all(c in ".•· \u2022\u00b7 " for c in text) if text else True
+                if len(text) < 20 or text.endswith(">") or _is_dots:
                     last_len = len(text)
                     for _ in range(10):
                         await asyncio.sleep(0.2)
@@ -321,7 +357,15 @@ class PlaywrightDriver:
                             text, last_len = new_text, len(new_text)
                         elif new_text:
                             break
+                # After settle, re-check: if text is still dots-only or too short,
+                # the typing indicator is still active — re-enter the wait loop.
+                _still_dots = all(c in ".•· \u2022\u00b7 " for c in text) if text else True
+                if _still_dots or len(text) < 15:
+                    await asyncio.sleep(POLL_INTERVAL_MS / 1000)
+                    elapsed += POLL_INTERVAL_MS
+                    continue
                 return text
+
 
             # ── Stale selector probe: if 3s have passed and bot_message still
             #    matches 0 elements, our cached selector is wrong for this page.

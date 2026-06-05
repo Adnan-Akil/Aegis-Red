@@ -1,12 +1,4 @@
 {
-    "localhost:5173": {
-        "chat_input": "[placeholder*='message' i]",
-        "send_button": "button[type='submit']",
-        "bot_message": "div.justify-start > div",
-        "typing_indicator": ".animate-spin",
-        "tab_button_template": "",
-        "discovery_url": "http://localhost:5173/support"
-    },
     "gemini.google.com": {
         "chat_input": "div[contenteditable='true']",
         "send_button": "button[aria-label*='send' i]",
