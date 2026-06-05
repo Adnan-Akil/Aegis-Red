@@ -58,6 +58,9 @@ class SQLiteManager:
             
         logger.debug("SQLite DB ready at %s", self.db_path)
 
+        # Migrate any legacy hardened_* target rows to their base types
+        await self._migrate_hardened_types()
+
     async def close(self) -> None:
         if self._db:
             await self._db.close()
@@ -69,6 +72,26 @@ class SQLiteManager:
 
     async def __aexit__(self, *_) -> None:
         await self.close()
+
+    # ------------------------------------------------------------------
+    # Migrations
+    # ------------------------------------------------------------------
+
+    async def _migrate_hardened_types(self) -> None:
+        """One-shot migration: remap legacy hardened_* target_type rows to base types."""
+        assert self._db is not None
+        mapping = {
+            "hardened_bot": "chatbot",
+            "hardened_rag": "rag",
+            "hardened_tool": "tool_agent",
+        }
+        for old_type, new_type in mapping.items():
+            await self._db.execute(
+                "UPDATE targets SET target_type = ? WHERE target_type = ?",
+                (new_type, old_type),
+            )
+        await self._db.commit()
+        logger.debug("Hardened-type migration complete.")
 
     # ------------------------------------------------------------------
     # Schema
@@ -221,22 +244,57 @@ class SQLiteManager:
             parent_payload_id=row["parent_payload_id"] if "parent_payload_id" in row.keys() else None,
         )
 
-    async def get_successful_mutations(self, target_id: str) -> list["AttackPayload"]:
+    async def get_successful_mutations_by_type(
+        self,
+        target_type: str,
+        target_id: str,
+    ) -> list["AttackPayload"]:
+        """
+        Return memorized mutations that are likely to work against targets of
+        *target_type*, ranked by cross-target reliability score.
+
+        Rules:
+        - Pulls from all targets whose type matches target_type
+          (or ALL types when target_type == "unknown").
+        - Computes reliability = success_count / total_attempts per payload.
+        - Only includes payloads with reliability > 0.4.
+        - Excludes any payload already attempted against *target_id* in any
+          past session (no point repeating a known failure on the same bot).
+        - Ordered by reliability descending so the best bets come first.
+        """
         from src.memory.schemas import AttackPayload
         assert self._db is not None
-        rows = []
-        async with self._db.execute(
-            """
-            SELECT DISTINCT a.payload_id, a.category, a.payload_text
+
+        # For unknown targets we scatter-shot across all types
+        type_filter = "" if target_type == "unknown" else "AND t.target_type = ?"
+        params_base: tuple = () if target_type == "unknown" else (target_type,)
+
+        query = f"""
+            SELECT
+                a.payload_id,
+                a.category,
+                a.payload_text,
+                CAST(SUM(CASE WHEN e.verdict = 'success' THEN 1 ELSE 0 END) AS REAL)
+                    / COUNT(*) AS reliability
             FROM attack_attempts a
             JOIN evaluation_results e ON a.attempt_id = e.attempt_id
-            WHERE a.target_id = ? AND e.verdict = 'yes' AND a.payload_id LIKE 'mut-%'
-            ORDER BY a.timestamp DESC
-            """,
-            (target_id,),
-        ) as cur:
+            JOIN targets t            ON a.target_id  = t.target_id
+            WHERE a.payload_id LIKE 'mut-%'
+              {type_filter}
+              AND a.payload_id NOT IN (
+                  SELECT DISTINCT payload_id
+                  FROM attack_attempts
+                  WHERE target_id = ?
+              )
+            GROUP BY a.payload_id
+            HAVING reliability > 0.4
+            ORDER BY reliability DESC
+        """
+
+        rows = []
+        async with self._db.execute(query, params_base + (target_id,)) as cur:
             rows = await cur.fetchall()
-            
+
         payloads = []
         for r in rows:
             payloads.append(AttackPayload(
@@ -244,7 +302,7 @@ class SQLiteManager:
                 category=r["category"],
                 name="memorized-mutation",
                 template=r["payload_text"],
-                tags=["memory"]
+                tags=["memory"],
             ))
         return payloads
 

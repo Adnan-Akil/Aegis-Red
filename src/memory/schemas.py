@@ -32,8 +32,7 @@ class TargetProfile(BaseModel):
     name: str                               # e.g. "chatbot_vuln"
     url: str                                # base URL of the frontend
     api_url: str                            # base URL of the FastAPI backend
-    target_type: Literal["chatbot", "rag", "tool_agent", "hardened_bot",
-                         "hardened_rag", "hardened_tool", "unknown"]
+    target_type: Literal["chatbot", "rag", "tool_agent", "unknown"]
     port: int = 80
     suspected_capabilities: list[str] = Field(default_factory=list)
     known_constraints: list[str] = Field(default_factory=list)
