@@ -139,23 +139,46 @@ export default function LandingPage() {
           <p className="text-zinc-500 text-sm">What are we testing today?</p>
         </div>
 
-        <div className="relative w-full">
+        <div className="relative w-full group">
+          {/* Static/Focus Gradient Glows (Active when not scanning) */}
+          {!isScanning && (
+            <>
+              {/* Outer Ambient Glow - Wide & Blurred */}
+              <div className="absolute -inset-4 bg-gradient-to-r from-red-600 via-purple-600 to-rose-500 rounded-xl blur-3xl opacity-20 group-focus-within:opacity-45 transition-opacity duration-500 pointer-events-none z-0" />
+              {/* Medium Blurred Glow */}
+              <div className="absolute -inset-1.5 bg-gradient-to-r from-red-600 via-purple-600 to-rose-500 rounded-lg blur-xl opacity-35 group-focus-within:opacity-60 transition-opacity duration-500 pointer-events-none z-0" />
+              {/* Tight Border Glow - Crisp Edge */}
+              <div className="absolute -inset-[1px] bg-gradient-to-r from-red-600 via-purple-600 to-rose-500 rounded-lg opacity-60 group-focus-within:opacity-85 transition-opacity duration-500 pointer-events-none z-0" />
+            </>
+          )}
+
+          {/* Scanning Dynamic/Pulsing Gradient Glows */}
           <AnimatePresence>
             {isScanning && (
               <>
+                {/* Scanning Outer Ambient Glow */}
                 <motion.div
                   initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 0.15, scale: 1.05 }}
+                  animate={{ opacity: 0.45, scale: 1.05 }}
                   exit={{ opacity: 0 }}
-                  transition={{ duration: 1.5, repeat: Infinity, repeatType: "reverse" }}
-                  className="absolute -inset-2 bg-zinc-200 rounded-xl blur-lg z-0 pointer-events-none"
+                  transition={{ duration: 2, repeat: Infinity, repeatType: "reverse", ease: "easeInOut" }}
+                  className="absolute -inset-4 bg-gradient-to-r from-red-600 via-purple-600 to-rose-500 rounded-xl blur-3xl z-0 pointer-events-none"
                 />
+                {/* Scanning Medium Blurred Glow */}
                 <motion.div
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 0.05, scale: 1.15 }}
+                  initial={{ opacity: 0, scale: 0.98 }}
+                  animate={{ opacity: 0.65, scale: 1.02 }}
                   exit={{ opacity: 0 }}
-                  transition={{ duration: 2, repeat: Infinity, repeatType: "loop", ease: "easeOut" }}
-                  className="absolute -inset-4 bg-zinc-300 rounded-xl blur-2xl z-0 pointer-events-none"
+                  transition={{ duration: 1.5, repeat: Infinity, repeatType: "reverse", ease: "easeInOut" }}
+                  className="absolute -inset-1.5 bg-gradient-to-r from-red-600 via-purple-600 to-rose-500 rounded-lg blur-xl z-0 pointer-events-none"
+                />
+                {/* Scanning Sharp Edge Glow */}
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 0.9 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.3 }}
+                  className="absolute -inset-[1px] bg-gradient-to-r from-red-600 via-purple-600 to-rose-500 rounded-lg z-0 pointer-events-none"
                 />
               </>
             )}

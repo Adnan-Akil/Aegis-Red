@@ -36,14 +36,25 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       if (user) {
         setCurrentUser(user);
         
-        // Fetch from profiles table
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("username")
-          .eq("id", user.id)
-          .single();
+        // Fetch from profiles table if available, otherwise fallback to Auth user metadata
+        let initialUsername = user.user_metadata?.username;
+        
+        if (!initialUsername) {
+          try {
+            const { data: profile } = await supabase
+              .from("profiles")
+              .select("username")
+              .eq("id", user.id)
+              .single();
+            if (profile?.username) {
+              initialUsername = profile.username;
+            }
+          } catch (err) {
+            console.warn("Failed to fetch from profiles table:", err);
+          }
+        }
 
-        const initialUsername = profile?.username || user.email?.split("@")[0] || "Operator";
+        initialUsername = initialUsername || user.email?.split("@")[0] || "Operator";
         
         const newProfile = {
           username: initialUsername,
@@ -85,16 +96,21 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       const { error } = await supabase.auth.updateUser(updates);
       if (error) throw error;
 
-      // Persist to profiles table
-      const { error: profileError } = await supabase
-        .from("profiles")
-        .upsert({ 
-          id: currentUser?.id, 
-          username: editProfileData.username,
-          updated_at: new Date().toISOString()
-        });
-      
-      if (profileError) throw profileError;
+      // Persist to profiles table (if it exists)
+      try {
+        const { error: profileError } = await supabase
+          .from("profiles")
+          .upsert({ 
+            id: currentUser?.id, 
+            username: editProfileData.username,
+            updated_at: new Date().toISOString()
+          });
+        if (profileError) {
+          console.warn("Profiles table upsert failed (it may not exist):", profileError.message);
+        }
+      } catch (dbErr) {
+        console.warn("DB profiles upsert error:", dbErr);
+      }
 
       setProfileData(editProfileData);
       setUserName(editProfileData.username);
@@ -235,8 +251,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       {/* Profile Modal */}
       {isProfileOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-          <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 w-full max-w-sm shadow-2xl flex flex-col">
+        <div 
+          onClick={handleProfileClose}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm cursor-pointer"
+        >
+          <div 
+            onClick={(e) => e.stopPropagation()}
+            className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 w-full max-w-sm shadow-2xl flex flex-col cursor-default"
+          >
             {/* Header */}
             <div className="flex items-center gap-3 mb-6">
               <div className="w-12 h-12 rounded-full bg-zinc-800 flex items-center justify-center border border-zinc-700">
