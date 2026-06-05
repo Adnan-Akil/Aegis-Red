@@ -27,7 +27,43 @@ test_groq_tools.py
 .DS_Store
 Thumbs.db
 *.otf
-Adnan_Synopsis_AegisRed.pdf
-synopsis_final.docx
 dc241013-*
 git_commit.ps1
+
+# Report / synopsis / poster (local only — not for repo)
+Adnan_Synopsis_AegisRed.pdf
+synopsis_final.docx
+"Aegis-Red Project Report Adnan.docx"
+Aegis-Red Project Report Adnan.docx
+"Aegis-Red Project Report Adnan.pdf"
+Aegis-Red Project Report Adnan.pdf
+aegis-red-poster-1.html
+aegis-red-poster-amity.html
+reports/synopsis_final.md
+report_raw.txt
+report_clean.txt
+report format.txt
+
+# Word temporary files
+~$*.docx
+~$*.doc
+~WRL*.tmp
+
+# Chart generation (local tooling)
+gen_charts.py
+charts/
+
+# Report editing scripts (local tooling)
+edit_report.py
+extract_report.py
+
+# Root-level run / test scripts (superseded by src/)
+run_attack.py
+smoke_test.py
+
+# Progress / notes (local scratchpad)
+progress.md
+
+# Logs (runtime output — not for repo)
+logs/
+*.log
