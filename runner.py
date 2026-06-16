@@ -5,6 +5,14 @@ import urllib.request
 import os
 import sys
 import atexit
+from pathlib import Path
+
+def _venv_python() -> str:
+    """Return the path to the venv Python executable, cross-platform."""
+    if sys.platform == "win32":
+        return str(Path("venv") / "Scripts" / "python.exe")
+    return str(Path("venv") / "bin" / "python")
+
 
 TARGET_CONFIG = {
     "hardened_bot": {
@@ -91,7 +99,7 @@ def main():
     parser.add_argument("--iter", type=int, default=5)
     args = parser.parse_args()
 
-    venv_python = os.path.abspath(os.path.join("venv", "Scripts", "python.exe"))
+    venv_python = os.path.abspath(_venv_python())
 
     # If the user provides a direct URL, bypass local server startup completely
     if args.target.startswith("http"):
@@ -116,7 +124,7 @@ def main():
     base_dir = os.path.abspath(config["dir"])
     
     # Setup paths
-    venv_python = os.path.abspath(os.path.join("venv", "Scripts", "python.exe"))
+    venv_python = os.path.abspath(_venv_python())
     npm_cmd = "npm.cmd" if os.name == "nt" else "npm"
 
     print("==================================================")

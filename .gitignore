@@ -3,12 +3,16 @@ venv/
 __pycache__/
 *.pyc
 *.pyo
+
+# Secrets — NEVER commit these
 .env
+.env.local
+frontend/.env.local
+backend/.env
 
 # Node / Next.js
 **/node_modules/
 **/.next/
-frontend/.env.local
 
 # Benchmark app runtime artifacts
 benchmark_apps/**/backend/.env
@@ -57,13 +61,13 @@ charts/
 edit_report.py
 extract_report.py
 
-# Root-level run / test scripts (superseded by src/)
-run_attack.py
-smoke_test.py
-
 # Progress / notes (local scratchpad)
 progress.md
+
+# Internal docs (local only — not for repo)
+docs/SOP.md
 
 # Logs (runtime output — not for repo)
 logs/
 *.log
+
