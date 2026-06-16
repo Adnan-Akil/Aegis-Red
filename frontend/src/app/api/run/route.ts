@@ -1,77 +1,48 @@
 import { NextResponse } from "next/server";
-import { spawn } from "child_process";
-import path from "path";
+
+const BACKEND_URL = process.env.BACKEND_URL ?? "http://localhost:8000";
 
 export async function POST(req: Request) {
   try {
-    const { url, headless, mutations, iterations, user_id } = await req.json();
+    const body = await req.json();
+    const { url } = body;
 
-    // 1. Security Validation: Ensure URL is an actual URL or a safe predefined target name
-    const safeTargets = ["chatbot", "rag", "tool_agent", "hardened_bot", "hardened_rag", "hardened_tool"];
+    // Security validation — mirrors backend validation
+    const safeTargets = ["chatbot", "rag", "tool_agent"];
     const isValidUrl = url.startsWith("http://") || url.startsWith("https://");
     const isSafeTarget = safeTargets.includes(url);
 
     if (!isValidUrl && !isSafeTarget) {
-      return NextResponse.json({ 
-        success: false, 
-        error: "Invalid target. Must be a valid URL (http/https) or a predefined local target name." 
-      }, { status: 400 });
+      return NextResponse.json(
+        { success: false, error: "Invalid target. Must be a valid URL (http/https) or a predefined local target name." },
+        { status: 400 }
+      );
     }
 
-    // The Python project is in the parent directory of frontend
-    const rootDir = path.join(process.cwd(), "..");
-    const pythonExecutable = path.join(rootDir, "venv", "Scripts", "python.exe");
+    console.log(`[Frontend] Proxying attack request to backend: ${BACKEND_URL}/run`);
+    console.log(`  URL: ${url} | Iterations: ${body.iterations} | Mutations: ${body.mutations}`);
 
-    const args = [
-      "run_attack.py",
-      url,
-      "--iter",
-      iterations.toString(),
-      "--mutations",
-      mutations.toString(),
-      "--user_id",
-      user_id
-    ];
-
-    console.log(`\n================================`);
-    console.log(`[Frontend] Launching Agent`);
-    console.log(`URL: ${url}`);
-    console.log(`Headless: ${headless}`);
-    console.log(`Iterations: ${iterations}`);
-    console.log(`Mutations: ${mutations}`);
-    console.log(`================================\n`);
-
-    const child = spawn(pythonExecutable, args, {
-      cwd: rootDir,
-      env: {
-        ...process.env,
-        PLAYWRIGHT_HEADLESS: headless ? "true" : "false",
-        PYTHONIOENCODING: "utf-8",
-      }
+    // Forward request to the FastAPI backend and stream the response back
+    const backendResponse = await fetch(`${BACKEND_URL}/run`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+      // NOTE: Vercel function timeout is 60s on hobby, 300s on pro.
+      // For long scans, ensure your Vercel plan matches expected scan duration.
+      signal: req.signal,
     });
 
-    const stream = new ReadableStream({
-      start(controller) {
-        child.stdout.on("data", (data) => {
-          controller.enqueue(data);
-        });
-        child.stderr.on("data", (data) => {
-          controller.enqueue(data);
-        });
-        child.on("close", (code) => {
-          controller.close();
-        });
-        child.on("error", (err) => {
-          controller.error(err);
-        });
-        req.signal.addEventListener("abort", () => {
-          console.log("[Frontend] Client aborted stream, killing agent process...");
-          child.kill();
-        });
-      },
-    });
+    if (!backendResponse.ok) {
+      const errText = await backendResponse.text();
+      console.error("[Frontend] Backend returned error:", errText);
+      return NextResponse.json(
+        { success: false, error: `Backend error: ${errText}` },
+        { status: backendResponse.status }
+      );
+    }
 
-    return new Response(stream, {
+    // Stream the backend response directly to the client
+    return new Response(backendResponse.body, {
       headers: {
         "Content-Type": "text/plain; charset=utf-8",
         "Cache-Control": "no-cache",
@@ -79,7 +50,11 @@ export async function POST(req: Request) {
       },
     });
   } catch (error: any) {
-    console.error("Error launching agent:", error);
+    if (error.name === "AbortError") {
+      // Client disconnected — this is expected, not an error
+      return new Response(null, { status: 499 });
+    }
+    console.error("[Frontend] Error proxying to backend:", error);
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }

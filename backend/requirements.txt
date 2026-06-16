@@ -1,0 +1,11 @@
+# ── Aegis-Red Backend Dependencies ───────────────────────────────────────────
+# These are in addition to (and separate from) the root requirements.txt
+# The root requirements.txt already covers the core attack framework deps.
+# This file adds the FastAPI serving layer.
+
+# Web Framework
+fastapi>=0.111.0
+uvicorn[standard]>=0.30.0
+
+# All other deps come from the root requirements.txt
+# Install with: pip install -r requirements.txt -r backend/requirements.txt
