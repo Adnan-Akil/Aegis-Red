@@ -39,8 +39,6 @@ Traditional vulnerability scanners look for static patterns (like SQL injections
 
 ## ⚡ Quickstart
 
-> For full deployment instructions (Vercel + Railway), see [DEPLOYMENT.md](DEPLOYMENT.md).
-
 ### Windows
 ```bat
 git clone https://github.com/Adnan-Akil/Aegis-Red.git
@@ -282,7 +280,7 @@ bash setup.sh
 This handles: venv creation → pip install → playwright chromium install → npm install.
 
 ### 4. Supabase Schema
-Run the SQL from [DEPLOYMENT.md#supabase-setup](DEPLOYMENT.md#supabase-setup) in your Supabase SQL editor to create the required tables.
+Run the SQL in your Supabase SQL editor to create the required tables (`sessions`, `logs`, `findings`, `profiles`). Enable Row Level Security on each so users only see their own data.
 
 ---
 
@@ -315,7 +313,7 @@ venv/Scripts/python runner.py --target hardened_rag --iter 5
 ```
 
 ### Option D: Vercel + Railway (Production)
-See [DEPLOYMENT.md](DEPLOYMENT.md) for the full step-by-step guide.
+Deploy `backend/` to Railway (auto-detected via `Procfile`) and `frontend/` to Vercel. Set the env vars on each platform and point `BACKEND_URL` at your Railway URL.
 
 ---
 
