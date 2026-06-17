@@ -47,6 +47,8 @@ STRICT OUTPUT RULES:
 - Use objective, third-person language throughout.
 - The date is {today}. Do not guess or invent a different date.
 - Each confirmed finding MUST have its own Root Cause and Remediation sub-section with SPECIFIC actions (see system instructions).
+- CRITICAL: You MUST leave a blank empty line immediately BEFORE and AFTER every markdown table, otherwise the frontend parser will break.
+- CRITICAL: Do NOT add leading spaces or tabs before table rows (start exactly with `|`).
 
 SESSION METADATA:
 - Date: {today}

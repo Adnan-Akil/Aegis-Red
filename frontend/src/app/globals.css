@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 :root {
-  --background: #121212;
+  --background: #0e0e10;
   --foreground: #e4e4e7; /* zinc-200 */
 }
 
@@ -17,27 +17,31 @@ body {
   font-family: 'Elms Sans', sans-serif;
 }
 
-/* Hide scrollbar for Chrome, Safari and Opera */
-.no-scrollbar::-webkit-scrollbar {
-    display: none;
+/* ── Scrollbar hide ── */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* ── Custom range input — hide native thumb, use overlay trick ── */
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+  cursor: pointer;
 }
-/* Hide scrollbar for IE, Edge and Firefox */
-.no-scrollbar {
-    -ms-overflow-style: none;  /* IE and Edge */
-    scrollbar-width: none;  /* Firefox */
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 0;
+  height: 0;
+}
+input[type="range"]::-moz-range-thumb {
+  width: 0;
+  height: 0;
+  border: none;
+  background: transparent;
 }
 
-/* Hide scrollbar for Chrome, Safari and Opera */
-.no-scrollbar::-webkit-scrollbar {
-    display: none;
-}
-
-/* Hide scrollbar for IE, Edge and Firefox */
-.no-scrollbar {
-    -ms-overflow-style: none;  /* IE and Edge */
-    scrollbar-width: none;  /* Firefox */
-}
-
+/* ── Idle glow pulse ── */
 @keyframes glowPulse {
   0%, 100% { opacity: 0.7; transform: translateX(-50%) scale(1); }
   50%       { opacity: 1;   transform: translateX(-50%) scale(1.08); }
