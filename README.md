@@ -230,13 +230,13 @@ Quantitative performance based on **1,306 total attack cycles** across **82 dist
 *Below are the pre-rendered statistical charts showing performance metrics:*
 
 #### 1. Success Rate by Attack Category
-![Attack Categories](charts/chart1_attack_categories.png)
+![Attack Categories](assets/chart1_attack_categories.png)
 
 #### 2. Average Time-to-Compromise (TTC) Distribution
-![Time to Compromise](charts/chart2_ttc.png)
+![Time to Compromise](assets/chart2_ttc.png)
 
 #### 3. Delta Improvements: Aegis-Red v1.0 vs v2.0 Overhaul
-![v1 vs v2 Overhaul](charts/chart3_v1_vs_v2.png)
+![v1 vs v2 Overhaul](assets/chart3_v1_vs_v2.png)
 
 ---
 
