@@ -47,7 +47,7 @@ if not exist "%ROOT%\frontend\node_modules" (
 
 :: ── Start FastAPI backend in a new window ─────────────────────────────────────
 echo  [*] Starting Aegis-Red Backend ^(FastAPI on port 8000^)...
-start "Aegis-Red Backend" cmd /k "cd /d "%ROOT%" && venv\Scripts\uvicorn backend.main:app --port 8000 --reload"
+start "Aegis-Red Backend" cmd /k "cd /d "%ROOT%" && venv\Scripts\python run_backend.py"
 
 :: ── Wait briefly for backend to boot ─────────────────────────────────────────
 timeout /t 3 /nobreak >nul

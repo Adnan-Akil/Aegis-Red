@@ -67,7 +67,7 @@ echo  ============================================================
 echo  [+] Setup complete!
 echo.
 echo    Start the dashboard:  cd frontend ^&^& npm run dev
-echo    Start the backend:    venv\Scripts\uvicorn backend.main:app --reload
+echo    Start the backend:    venv\Scripts\python run_backend.py
 echo    Run an attack:        venv\Scripts\python run_attack.py https://target.com
 echo  ============================================================
 echo.

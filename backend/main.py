@@ -12,6 +12,12 @@ import sys
 import uuid
 from pathlib import Path
 
+# ── Windows: switch to ProactorEventLoop so Playwright can spawn subprocesses ─
+# The default SelectorEventLoop on Windows does not support create_subprocess_exec.
+if sys.platform == "win32":
+    asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
+
+
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
@@ -113,27 +119,35 @@ async def _stream_attack(req: RunRequest, disconnect: asyncio.Event) -> None:
     def _emit(msg: str) -> str:
         return msg + "\n"
 
-    yield _emit(f"🔍 Mapping attack surface for {name}...")
-    mapper_data = await map_surface(url, target_name=name, target_type=actual_target_type)
+    # ── Recon phase — wrap so any failure streams cleanly instead of killing the socket ──
+    try:
+        yield _emit(f"🔍 Mapping attack surface for {name}...")
+        mapper_data = await map_surface(url, target_name=name, target_type=actual_target_type)
 
-    yield _emit(f"🧠 Generating threat model...")
-    target = await generate_threat_model(
-        url,
-        target_name=name,
-        base_target_type=actual_target_type,
-        port=port,
-        mapper_data=mapper_data,
-    )
+        yield _emit(f"🧠 Generating threat model...")
+        target = await generate_threat_model(
+            url,
+            target_name=name,
+            base_target_type=actual_target_type,
+            port=port,
+            mapper_data=mapper_data,
+        )
 
-    discovered_url = mapper_data.get("discovery_url", url)
-    discovered_sels = mapper_data.get("selectors")
-    target.url = discovered_url
-    target.discovery_url = discovered_url
-    if discovered_sels:
-        target.discovered_selectors = discovered_sels
+        discovered_url = mapper_data.get("discovery_url", url)
+        discovered_sels = mapper_data.get("selectors")
+        target.url = discovered_url
+        target.discovery_url = discovered_url
+        if discovered_sels:
+            target.discovered_selectors = discovered_sels
 
-    yield _emit(f"\n🕵️ Active Prober: Interrogating target to discover capabilities...")
-    target = await active_probe(target)
+        yield _emit(f"\n🕵️ Active Prober: Interrogating target to discover capabilities...")
+        target = await active_probe(target)
+
+    except Exception as recon_err:
+        logger.error(f"Recon phase failed: {recon_err}", exc_info=True)
+        yield _emit(f"\n❌ Recon failed: {recon_err}")
+        yield _emit("Session aborted during reconnaissance.")
+        return
 
     db.create_session(
         user_id=user_id,
@@ -167,6 +181,7 @@ async def _stream_attack(req: RunRequest, disconnect: asyncio.Event) -> None:
     yield _emit(f"🚀 Starting Attack Session: {session_id}")
     yield _emit(f"🎯 Target: {target.name} ({target.target_type}) at {target.url}")
     yield _emit(f"==================================================\n")
+
 
     last_attempt = None
     max_score = 0.0
@@ -281,7 +296,9 @@ async def _stream_attack(req: RunRequest, disconnect: asyncio.Event) -> None:
 # ── Routes ────────────────────────────────────────────────────────────────────
 @app.get("/health")
 async def health() -> dict:
-    return {"status": "ok", "service": "aegis-red-backend"}
+    import asyncio
+    loop = asyncio.get_running_loop()
+    return {"status": "ok", "service": "aegis-red-backend", "loop_type": str(type(loop))}
 
 
 @app.post("/run")
