@@ -41,8 +41,8 @@ function useScrollControl(onDelta: (dir: 1 | -1) => void) {
   return ref;
 }
 
-// ─── ModeBox ─────────────────────────────────────────────────────────────────
-function ModeBox({ value, onChange }: { value: boolean; onChange: (v: boolean) => void }) {
+// ─── ModeBox ───────────────────────────────────────────────────────────────────
+function ModeBox({ id, value, onChange }: { id?: string; value: boolean; onChange: (v: boolean) => void }) {
   const [dir, setDir] = useState<1 | -1>(1);
   const handleDelta = useCallback((d: 1 | -1) => {
     setDir(d);
@@ -51,7 +51,7 @@ function ModeBox({ value, onChange }: { value: boolean; onChange: (v: boolean) =
   const scrollRef = useScrollControl(handleDelta);
   const label = value ? "Headless" : "Headed";
   return (
-    <div ref={scrollRef}
+    <div id={id} ref={scrollRef}
       className="flex-1 flex flex-col px-3 py-2.5 rounded-lg cursor-ns-resize select-none relative overflow-hidden group"
       style={{ background: "rgba(14,14,16,0.48)", backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)", border: "1px solid rgba(255,255,255,0.06)", minWidth: 0 }}>
       <span className="text-[9px] uppercase tracking-widest text-zinc-300 font-semibold mb-1.5">Browser Mode</span>
@@ -76,8 +76,8 @@ function ModeBox({ value, onChange }: { value: boolean; onChange: (v: boolean) =
   );
 }
 
-// ─── StepperBox ───────────────────────────────────────────────────────────────
-function StepperBox({ label, value, min, max, onChange }: { label: string; value: number; min: number; max: number; onChange: (v: number) => void }) {
+// ─── StepperBox ────────────────────────────────────────────────────────────────────
+function StepperBox({ id, label, value, min, max, onChange }: { id?: string; label: string; value: number; min: number; max: number; onChange: (v: number) => void }) {
   const [dir, setDir] = useState<1 | -1>(1);
   const step = useCallback((d: 1 | -1) => {
     const next = Math.min(max, Math.max(min, value + d));
@@ -85,7 +85,7 @@ function StepperBox({ label, value, min, max, onChange }: { label: string; value
   }, [value, min, max, onChange]);
   const scrollRef = useScrollControl(step);
   return (
-    <div ref={scrollRef}
+    <div id={id} ref={scrollRef}
       className="flex-1 flex flex-col px-3 py-2.5 rounded-lg cursor-ns-resize select-none relative overflow-hidden group"
       style={{ background: "rgba(14,14,16,0.48)", backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)", border: "1px solid rgba(255,255,255,0.06)", minWidth: 0 }}>
       <span className="text-[9px] uppercase tracking-widest text-zinc-300 font-semibold mb-1.5">{label}</span>
@@ -223,15 +223,25 @@ export default function LandingPage() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("No authenticated user found");
 
+      // Retrieve the live session token to send as a Bearer token
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) throw new Error("No active session token");
+
       const response = await fetch("/api/run", {
         method: "POST",
         signal: abortControllerRef.current.signal,
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${session.access_token}`,
+        },
         body: JSON.stringify({ url: url.trim(), headless: headlessMode, mutations: maxMutations, iterations: maxIterations, user_id: user.id }),
       });
 
-      if (!response.ok) throw new Error("Failed to start agent");
-
+      if (!response.ok) {
+        let errData: any = {};
+        try { errData = await response.json(); } catch {}
+        throw new Error(errData.error || `Failed to start agent: ${response.statusText}`);
+      }
       const reader = response.body?.getReader();
       const decoder = new TextDecoder();
 
@@ -360,11 +370,12 @@ export default function LandingPage() {
               <div className="absolute -inset-[1px] bg-gradient-to-r from-red-600 via-purple-600 to-rose-500 rounded-lg opacity-48 group-focus-within:opacity-72 transition-opacity duration-500 pointer-events-none z-0" />
 
               <form onSubmit={handleScan}
+                id="tour-url-input"
                 className="relative z-10 w-full rounded-lg p-1 flex items-center shadow-sm"
                 style={{ background: "rgba(16,16,18,0.86)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)", border: "1px solid rgba(255,255,255,0.08)" }}>
                 <input type="url" placeholder="Enter target AI URL..." value={url} onChange={e => setUrl(e.target.value)} required
                   className="flex-1 bg-transparent border-none outline-none text-zinc-200 placeholder-white/40 px-4 py-3.5 text-[15px]" />
-                <motion.button type="submit" disabled={!url} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
+                <motion.button id="tour-launch-btn" type="submit" disabled={!url} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
                   className="bg-zinc-800/90 text-white hover:bg-zinc-700 px-4 py-2 mr-1 rounded-md font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center h-10 w-12">
                   <ChevronRight className="w-5 h-5" />
                 </motion.button>
@@ -375,9 +386,9 @@ export default function LandingPage() {
             <motion.div className="w-full max-w-2xl mt-3 flex gap-2"
               initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: -24 }}
               transition={{ duration: 0.45, delay: 0.22, ease: "easeOut" }}>
-              <ModeBox value={headlessMode} onChange={setHeadlessMode} />
-              <StepperBox label="Mutations" value={maxMutations} min={1} max={5} onChange={setMaxMutations} />
-              <StepperBox label="Iterations" value={maxIterations} min={1} max={15} onChange={setMaxIterations} />
+              <ModeBox id="tour-browser-mode" value={headlessMode} onChange={setHeadlessMode} />
+              <StepperBox id="tour-mutations" label="Mutations" value={maxMutations} min={1} max={5} onChange={setMaxMutations} />
+              <StepperBox id="tour-iterations" label="Iterations" value={maxIterations} min={1} max={15} onChange={setMaxIterations} />
             </motion.div>
           </motion.div>
         )}

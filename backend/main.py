@@ -190,7 +190,7 @@ async def _stream_attack(req: RunRequest, disconnect: asyncio.Event) -> None:
     _iter_verdict_written = True
 
     try:
-        async for event in orchestrator_app.astream(initial_state, graph_config):
+        async for event in orchestrator_app.astream(initial_state, graph_config, stream_mode="updates"):
             # Abort if client disconnected
             if disconnect.is_set():
                 logger.info(f"[{session_id}] Client disconnected — aborting stream.")

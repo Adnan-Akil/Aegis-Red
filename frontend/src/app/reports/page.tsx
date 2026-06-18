@@ -101,7 +101,9 @@ export default function ReportsPage() {
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
-        a.download = path.split("/").pop() || defaultName;
+        // Sanitise filename: take only the basename, strip any path traversal characters
+        const rawName = path.split("/").pop() || defaultName;
+        a.download = rawName.replace(/[^a-zA-Z0-9._\-]/g, "_");
         document.body.appendChild(a);
         a.click();
         window.URL.revokeObjectURL(url);
@@ -414,7 +416,20 @@ export default function ReportsPage() {
                     prose-td:p-4 prose-td:border prose-td:border-white/5 prose-td:text-zinc-400
                     prose-tr:border-b prose-tr:border-white/5 hover:prose-tr:bg-white/[0.02] transition-colors
                     prose-ul:my-6 prose-li:my-2 prose-li:text-zinc-400">
-                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                    <ReactMarkdown
+                      remarkPlugins={[remarkGfm]}
+                      components={{
+                        // Block javascript: hrefs and force safe link attributes
+                        a: ({ href, children }) => {
+                          const safeHref = href && !href.toLowerCase().startsWith("javascript:") ? href : "#";
+                          return (
+                            <a href={safeHref} target="_blank" rel="noopener noreferrer">
+                              {children}
+                            </a>
+                          );
+                        },
+                      }}
+                    >
                       {markdownContent}
                     </ReactMarkdown>
                   </div>

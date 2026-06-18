@@ -17,6 +17,23 @@ body {
   font-family: 'Elms Sans', sans-serif;
 }
 
+/* ── System-wide text selection disable ── */
+/* Covers all elements including dynamically injected ones (e.g. portals, tour overlays) */
+*, *::before, *::after {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
+/* Re-enable selection only where the user genuinely needs to type */
+input, textarea, [contenteditable="true"] {
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  -ms-user-select: text;
+  user-select: text;
+}
+
 /* ── Scrollbar hide ── */
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }

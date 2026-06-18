@@ -59,13 +59,29 @@ export function AuthWrapper({ children }: { children: React.ReactNode }) {
       if (isSignUp) {
         const { error } = await supabase.auth.signUp({ email, password });
         if (error) throw error;
-        // In local dev without email setup, it auto-logs in.
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
       }
     } catch (err: any) {
-      setError(err.message || "An error occurred");
+      // Log the real error server-side only — never expose raw Supabase internals to the UI
+      console.error("[Auth]", err?.message);
+
+      // Map to safe, generic user-facing messages
+      const msg: string = err?.message?.toLowerCase() ?? "";
+      if (msg.includes("invalid login") || msg.includes("invalid credentials") || msg.includes("wrong password")) {
+        setError("Invalid email or password.");
+      } else if (msg.includes("email not confirmed")) {
+        setError("Please confirm your email address before signing in.");
+      } else if (msg.includes("rate limit") || msg.includes("too many")) {
+        setError("Too many attempts. Please wait a moment and try again.");
+      } else if (msg.includes("user already registered") || msg.includes("already been registered")) {
+        setError("An account with this email already exists. Try signing in.");
+      } else if (msg.includes("password") && msg.includes("short")) {
+        setError("Password must be at least 6 characters.");
+      } else {
+        setError("Authentication failed. Please check your credentials and try again.");
+      }
     } finally {
       setAuthLoading(false);
     }
