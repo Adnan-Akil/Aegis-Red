@@ -343,8 +343,8 @@ export default function ReportsPage() {
                       <span className="font-mono text-[10px] text-zinc-500 uppercase tracking-widest">{r.id.split("-")[0]}</span>
                       <span className="text-[10px] text-zinc-500">{getRelativeTime(r.created_at)}</span>
                     </div>
-                    <div className="flex items-start justify-between gap-2">
-                      <span className="text-sm font-semibold text-zinc-200 truncate leading-snug">{r.target_url}</span>
+                    <div className="flex items-start justify-between gap-2 min-w-0">
+                      <span className="text-sm font-semibold text-zinc-200 truncate leading-snug min-w-0 flex-1">{r.target_url}</span>
                       <div className={`shrink-0 flex items-center justify-center w-5 h-5 rounded-md border ${badgeClass}`}>
                         {icon}
                       </div>
@@ -376,8 +376,8 @@ export default function ReportsPage() {
             <>
               {/* Header */}
               <div className="shrink-0 px-6 py-4 border-b border-white/5 flex items-center justify-between bg-black/20 z-10">
-                <div className="flex flex-col gap-1">
-                  <h3 className="text-lg font-semibold text-white tracking-tight">{selectedReport.target_name || selectedReport.target_url}</h3>
+                <div className="flex flex-col gap-1 min-w-0">
+                  <h3 className="text-lg font-semibold text-white tracking-tight truncate max-w-xl">{selectedReport.target_name || selectedReport.target_url}</h3>
                   <div className="flex items-center gap-3">
                     <span className="font-mono text-xs text-zinc-500">{new Date(selectedReport.created_at).toLocaleString()}</span>
                     <span className="text-zinc-600 text-xs">•</span>
@@ -428,6 +428,49 @@ export default function ReportsPage() {
                             </a>
                           );
                         },
+                        // Custom table components for premium styling and horizontal scroll wrapper
+                        table: ({ children }) => (
+                          <div className="w-full overflow-x-auto border border-white/5 rounded-xl my-6 bg-black/20">
+                            <table className="w-full border-collapse text-left text-sm text-zinc-400">
+                              {children}
+                            </table>
+                          </div>
+                        ),
+                        th: ({ children }) => (
+                          <th className="bg-white/5 p-4 text-left text-[11px] font-semibold uppercase tracking-wider text-zinc-300 border-b border-white/10">
+                            {children}
+                          </th>
+                        ),
+                        td: ({ children }) => (
+                          <td className="p-4 text-zinc-400 border-b border-white/5 font-mono text-[13px]">
+                            {children}
+                          </td>
+                        ),
+                        tr: ({ children }) => (
+                          <tr className="hover:bg-white/[0.01] transition-colors border-b border-white/5 last:border-0">
+                            {children}
+                          </tr>
+                        ),
+                        // Monospace dark blockquote for terminal logs/payloads
+                        blockquote: ({ children }) => (
+                          <blockquote className="my-4 border-l-2 border-red-500/50 bg-[#070709] p-4 rounded-r-lg font-mono text-[12.5px] text-zinc-400 leading-relaxed shadow-sm">
+                            {children}
+                          </blockquote>
+                        ),
+                        // Intercept FINDING headers to style them as alert blocks
+                        h3: ({ children }) => {
+                          const text = String(children || "");
+                          if (text.includes("FINDING-")) {
+                            return (
+                              <div className="mt-8 mb-4 border border-red-500/20 bg-red-500/5 rounded-xl p-4 shadow-lg shadow-red-950/10">
+                                <h3 className="text-base font-semibold text-red-400 flex items-center gap-2 m-0">
+                                  {children}
+                                </h3>
+                              </div>
+                            );
+                          }
+                          return <h3 className="text-lg font-semibold text-white tracking-tight mt-8 mb-4">{children}</h3>;
+                        }
                       }}
                     >
                       {markdownContent}
