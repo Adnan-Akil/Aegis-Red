@@ -54,7 +54,7 @@ function ModeBox({ id, value, onChange }: { id?: string; value: boolean; onChang
     <div id={id} ref={scrollRef}
       className="flex-1 flex flex-col px-3 py-2.5 rounded-lg cursor-ns-resize select-none relative overflow-hidden group"
       style={{ background: "rgba(14,14,16,0.48)", backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)", border: "1px solid rgba(255,255,255,0.06)", minWidth: 0 }}>
-      <span className="text-[9px] uppercase tracking-widest text-zinc-300 font-semibold mb-1.5">Browser Mode</span>
+      <span className="text-[9.9px] uppercase tracking-widest text-zinc-300 font-semibold mb-1.5">Browser Mode</span>
       <div className="flex items-center justify-between gap-2 overflow-hidden">
         <div className="relative h-5 flex-1 overflow-hidden flex items-center">
           <AnimatePresence mode="popLayout" custom={dir}>
@@ -62,7 +62,7 @@ function ModeBox({ id, value, onChange }: { id?: string; value: boolean; onChang
               variants={{ enter: (d: number) => ({ y: d > 0 ? -18 : 18, opacity: 0 }), center: { y: 0, opacity: 1 }, exit: (d: number) => ({ y: d > 0 ? 18 : -18, opacity: 0 }) }}
               initial="enter" animate="center" exit="exit"
               transition={{ type: "spring", stiffness: 380, damping: 30 }}
-              className="text-[13px] font-medium text-zinc-200 absolute whitespace-nowrap">
+              className="text-[14.3px] font-medium text-zinc-200 absolute whitespace-nowrap">
               {label}
             </motion.span>
           </AnimatePresence>
@@ -88,7 +88,7 @@ function StepperBox({ id, label, value, min, max, onChange }: { id?: string; lab
     <div id={id} ref={scrollRef}
       className="flex-1 flex flex-col px-3 py-2.5 rounded-lg cursor-ns-resize select-none relative overflow-hidden group"
       style={{ background: "rgba(14,14,16,0.48)", backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)", border: "1px solid rgba(255,255,255,0.06)", minWidth: 0 }}>
-      <span className="text-[9px] uppercase tracking-widest text-zinc-300 font-semibold mb-1.5">{label}</span>
+      <span className="text-[9.9px] uppercase tracking-widest text-zinc-300 font-semibold mb-1.5">{label}</span>
       <div className="flex items-center justify-between gap-2 overflow-hidden">
         <div className="relative h-5 flex-1 overflow-hidden flex items-center">
           <AnimatePresence mode="popLayout" custom={dir}>
@@ -96,7 +96,7 @@ function StepperBox({ id, label, value, min, max, onChange }: { id?: string; lab
               variants={{ enter: (d: number) => ({ y: d > 0 ? -18 : 18, opacity: 0 }), center: { y: 0, opacity: 1 }, exit: (d: number) => ({ y: d > 0 ? 18 : -18, opacity: 0 }) }}
               initial="enter" animate="center" exit="exit"
               transition={{ type: "spring", stiffness: 380, damping: 30 }}
-              className="text-[13px] font-semibold text-zinc-200 absolute tabular-nums">
+              className="text-[14.3px] font-semibold text-zinc-200 absolute tabular-nums">
               {value}
             </motion.span>
           </AnimatePresence>
@@ -119,8 +119,8 @@ function StatBar({ label, value, max, display, color }: {
   return (
     <div className="flex flex-col gap-1.5">
       <div className="flex justify-between items-center">
-        <span className="text-[10px] uppercase tracking-widest text-zinc-500 font-semibold">{label}</span>
-        <span className="text-[11px] text-zinc-300 font-semibold tabular-nums">{display}</span>
+        <span className="text-[11px] uppercase tracking-widest text-zinc-500 font-semibold">{label}</span>
+        <span className="text-[12.1px] text-zinc-300 font-semibold tabular-nums">{display}</span>
       </div>
       <div className="relative h-1 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.06)" }}>
         <motion.div
@@ -413,8 +413,8 @@ export default function LandingPage() {
               initial={{ opacity: 0, y: -12 }} animate={{ opacity: 1, y: -64 }}
               transition={{ duration: 0.5, ease: "easeOut" }}>
               <div>
-                <h2 className="font-medium text-white mb-2 tracking-tight" style={{ fontSize: "2.43rem" }}>{getGreeting()}, {userName}.</h2>
-                <p className="text-zinc-400" style={{ fontSize: "1.08rem" }}>Probe. Exploit. Harden. — AI red-teaming with surgical precision.</p>
+                <h2 className="font-medium text-white mb-2 tracking-tight" style={{ fontSize: "2.67rem" }}>{getGreeting()}, {userName}.</h2>
+                <p className="text-zinc-400" style={{ fontSize: "1.19rem" }}>Probe. Exploit. Harden. — AI red-teaming with surgical precision.</p>
               </div>
 
               <AnimatePresence>
@@ -455,7 +455,7 @@ export default function LandingPage() {
                 className="relative z-10 w-full rounded-lg p-1 flex items-center shadow-sm"
                 style={{ background: "rgba(16,16,18,0.86)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)", border: "1px solid rgba(255,255,255,0.08)" }}>
                 <input type="url" placeholder="Enter target AI URL..." value={url} onChange={e => setUrl(e.target.value)} required
-                  className="flex-1 bg-transparent border-none outline-none text-zinc-200 placeholder-white/40 px-4 py-3.5 text-[15px]" />
+                  className="flex-1 bg-transparent border-none outline-none text-zinc-200 placeholder-white/40 px-4 py-3.5 text-[16.5px]" />
                 <motion.button id="tour-launch-btn" type="submit" disabled={!url} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
                   className="bg-zinc-800/90 text-white hover:bg-zinc-700 px-4 py-2 mr-1 rounded-md font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center h-10 w-12">
                   <ChevronRight className="w-5 h-5" />
@@ -509,7 +509,7 @@ export default function LandingPage() {
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-500 opacity-75" />
                   <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500" />
                 </span>
-                <span className="flex-1 text-zinc-400 text-[15px] truncate py-3.5 select-none">{url}</span>
+                <span className="flex-1 text-zinc-400 text-[16.5px] truncate py-3.5 select-none">{url}</span>
                 <motion.button
                   onClick={handleStop}
                   whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
@@ -534,16 +534,16 @@ export default function LandingPage() {
                   {/* Target & Elapsed */}
                   <div>
                     <div className="flex justify-between items-center mb-1">
-                      <span className="text-[10px] uppercase tracking-widest text-zinc-500 font-semibold">Target</span>
-                      <span className="text-[10px] uppercase tracking-widest text-zinc-500 font-semibold">Elapsed</span>
+                      <span className="text-[11px] uppercase tracking-widest text-zinc-500 font-semibold">Target</span>
+                      <span className="text-[11px] uppercase tracking-widest text-zinc-500 font-semibold">Elapsed</span>
                     </div>
                     <div className="flex justify-between items-end">
-                      <span className="text-lg font-semibold text-zinc-100 truncate pr-4">{targetName}</span>
+                      <span className="text-[20px] font-semibold text-zinc-100 truncate pr-4">{targetName}</span>
                       <motion.span
                         key={elapsedSeconds}
                         initial={{ opacity: 0.6 }} animate={{ opacity: 1 }}
                         transition={{ duration: 0.2 }}
-                        className="text-lg font-semibold text-zinc-200 tabular-nums font-mono shrink-0">
+                        className="text-[20px] font-semibold text-zinc-200 tabular-nums font-mono shrink-0">
                         {formatTime(elapsedSeconds)}
                       </motion.span>
                     </div>
@@ -573,8 +573,8 @@ export default function LandingPage() {
                 {/* Big Severity */}
                 <div className="mt-6 flex flex-col gap-2">
                   <div className="flex justify-between items-end">
-                    <span className="text-[10px] uppercase tracking-widest text-zinc-500 font-semibold">Severity</span>
-                    <span className="text-2xl font-bold tabular-nums" style={{ WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundImage: severityColor }}>
+                    <span className="text-[11px] uppercase tracking-widest text-zinc-500 font-semibold">Severity</span>
+                    <span className="text-[26.4px] font-bold tabular-nums" style={{ WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundImage: severityColor }}>
                       {currentSeverity}%
                     </span>
                   </div>
@@ -599,15 +599,15 @@ export default function LandingPage() {
               >
                 {/* Log header */}
                 <div className="px-4 py-2.5 flex items-center gap-2 shrink-0" style={{ borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
-                  <span className="text-[9px] uppercase tracking-widest text-zinc-600 font-semibold">Live Output</span>
+                  <span className="text-[9.9px] uppercase tracking-widest text-zinc-600 font-semibold">Live Output</span>
                   <div className="ml-auto flex items-center gap-1.5">
                     <span className="animate-pulse w-1.5 h-1.5 rounded-full bg-red-500/80" />
-                    <span className="text-[9px] text-zinc-600 uppercase tracking-wider">Streaming</span>
+                    <span className="text-[9.9px] text-zinc-600 uppercase tracking-wider">Streaming</span>
                   </div>
                 </div>
 
                 {/* Log body */}
-                <div className="flex-1 overflow-y-auto px-4 py-3 font-mono text-[11px] leading-5 space-y-0.5 no-scrollbar">
+                <div className="flex-1 overflow-y-auto px-4 py-3 font-mono text-[12.1px] leading-[22px] space-y-0.5 no-scrollbar">
                   <AnimatePresence initial={false}>
                     {logLines.map((line, i) => (
                       <motion.div

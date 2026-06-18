@@ -19,6 +19,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   } = useAppContext();
 
   const pathname = usePathname();
+  const isHomePage = pathname === "/";
 
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -136,7 +137,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           backgroundImage: "url('/bg_picture.jpg')",
           backgroundSize: "cover",
           backgroundPosition: "center",
-          filter: "blur(8px) brightness(0.52) saturate(0.85)",
+          filter: "blur(5px) brightness(0.52) saturate(0.85)",
           transform: "scale(1.05)",
         }}
       />
@@ -151,8 +152,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         }}
       >
         <h1
-          className="text-2xl font-bold tracking-widest text-white select-none"
-          style={{ fontFamily: "var(--font-chaste)", letterSpacing: "0.2em" }}
+          className="text-2xl font-bold tracking-widest text-white select-none font-chaste"
+          style={{
+            fontFamily: "var(--font-chaste)",
+            letterSpacing: "0.2em",
+            fontSize: isHomePage ? "1.65rem" : "1.5rem"
+          }}
         >
           Aegis-Red
         </h1>
@@ -163,14 +168,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
         {/* ── Left Sidebar ── */}
         <aside
-          className="w-16 h-full flex flex-col items-center py-6 z-20 shrink-0 relative"
+          className="w-20 h-full flex flex-col items-center py-6 z-20 shrink-0 relative"
           style={{
             ...glassPanel,
             borderRight: "1px solid rgba(255,255,255,0.07)",
           }}
         >
           {/* Nav Icons — vertically centered */}
-          <div className="flex-1 flex flex-col items-center justify-center space-y-10">
+          <div className="flex-1 flex flex-col items-center justify-center space-y-8">
             {[
               { href: "/", Icon: Home, label: "Home", id: "tour-nav-home" },
               { href: "/reports", Icon: FileText, label: "Reports", id: "tour-nav-reports" },
@@ -180,27 +185,38 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 key={href}
                 id={id}
                 href={href}
-                className="relative group flex justify-center items-center cursor-pointer"
+                className="relative group flex flex-col items-center justify-center cursor-pointer gap-1.5"
               >
                 {pathname === href && (
                   <span
-                    className="absolute -left-4 w-0.5 h-5 rounded-full bg-white/80"
-                    style={{ boxShadow: "0 0 8px 2px rgba(255,255,255,0.4)" }}
+                    className="absolute -left-6 w-0.5 rounded-full bg-white/80"
+                    style={{
+                      height: isHomePage ? "35.2px" : "32px",
+                      boxShadow: "0 0 8px 2px rgba(255,255,255,0.4)"
+                    }}
                   />
                 )}
                 <Icon
-                  className={`w-[22px] h-[22px] transition-all duration-200 ${
+                  className={`transition-all duration-200 ${
                     pathname === href
                       ? "text-white drop-shadow-[0_0_6px_rgba(255,255,255,0.6)]"
                       : "text-zinc-500 group-hover:text-zinc-200 group-hover:scale-110"
                   }`}
+                  style={{
+                    width: isHomePage ? "22px" : "20px",
+                    height: isHomePage ? "22px" : "20px"
+                  }}
                 />
-                <div
-                  className="absolute left-14 px-2.5 py-1 bg-zinc-900/90 backdrop-blur-sm text-xs text-white rounded-md opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-200 whitespace-nowrap border border-zinc-700/50"
-                  style={{ transform: "translateY(-50%)", top: "50%" }}
+                <span
+                  className={`uppercase tracking-widest font-mono transition-colors duration-200 ${
+                    pathname === href ? "text-white font-semibold" : "text-zinc-500 group-hover:text-zinc-300"
+                  }`}
+                  style={{
+                    fontSize: isHomePage ? "9.9px" : "9px"
+                  }}
                 >
                   {label}
-                </div>
+                </span>
               </Link>
             ))}
           </div>
@@ -210,10 +226,32 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <button
               id="tour-profile-btn"
               onClick={handleProfileOpen}
-              className="w-9 h-9 rounded-full flex items-center justify-center border border-zinc-700/60 cursor-pointer transition-all duration-200 hover:border-zinc-500 hover:scale-105 group"
-              style={{ background: "rgba(255,255,255,0.07)" }}
+              className="flex flex-col items-center gap-1.5 group cursor-pointer"
             >
-              <UserIcon className="w-4 h-4 text-zinc-400 group-hover:text-zinc-200 transition-colors" />
+              <div
+                className="rounded-full flex items-center justify-center border border-zinc-700/60 transition-all duration-200 hover:border-zinc-500 hover:scale-105"
+                style={{
+                  background: "rgba(255,255,255,0.07)",
+                  width: isHomePage ? "40px" : "36px",
+                  height: isHomePage ? "40px" : "36px"
+                }}
+              >
+                <UserIcon
+                  className="text-zinc-400 group-hover:text-zinc-200 transition-colors"
+                  style={{
+                    width: isHomePage ? "18px" : "16px",
+                    height: isHomePage ? "18px" : "16px"
+                  }}
+                />
+              </div>
+              <span
+                className="uppercase tracking-widest font-mono text-zinc-500 group-hover:text-zinc-300 transition-colors"
+                style={{
+                  fontSize: isHomePage ? "9.9px" : "9px"
+                }}
+              >
+                Profile
+              </span>
             </button>
           </div>
         </aside>

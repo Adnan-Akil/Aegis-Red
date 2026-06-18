@@ -311,6 +311,26 @@ export default function ReportsPage() {
             </div>
           </div>
 
+          {/* Status Badge Legend */}
+          <div className="shrink-0 px-4 py-2 bg-white/[0.02] border-y border-white/5 flex items-center justify-between gap-1 text-[10px] text-zinc-500 font-mono">
+            <div className="flex items-center gap-1">
+              <Zap className="w-3 h-3 text-red-400" />
+              <span>Critical</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <AlertTriangle className="w-3 h-3 text-yellow-400" />
+              <span>Warning</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <Fingerprint className="w-3 h-3 text-cyan-400" />
+              <span>Secure</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <Terminal className="w-3 h-3 text-purple-400" />
+              <span>Active</span>
+            </div>
+          </div>
+
           {/* List */}
           <div className="flex-1 overflow-y-auto px-4 pb-4 no-scrollbar flex flex-col gap-2.5">
             {filteredReports.length === 0 ? (

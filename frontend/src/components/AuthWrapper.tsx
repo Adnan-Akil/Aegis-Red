@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import { motion } from "framer-motion";
 import type { User } from "@supabase/supabase-js";
 import { Loader2 } from "lucide-react";
 import { useAppContext } from "@/app/context";
@@ -97,8 +98,43 @@ export function AuthWrapper({ children }: { children: React.ReactNode }) {
 
   if (!user) {
     return (
-      <div className="h-screen w-screen bg-zinc-950 flex items-center justify-center font-sans text-zinc-300">
-        <div className="w-full max-w-sm p-8 bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl">
+      <div className="h-screen w-screen bg-zinc-950 flex items-center justify-center font-sans text-zinc-300 relative overflow-hidden">
+        {/* ── Global Background Image ── */}
+        <div
+          className="fixed inset-0 z-0 pointer-events-none"
+          style={{
+            backgroundImage: "url('/bg_picture.jpg')",
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+            filter: "blur(5px) brightness(0.52) saturate(0.85)",
+            transform: "scale(1.05)",
+          }}
+        />
+        <div className="fixed inset-0 z-0 pointer-events-none bg-black/40" />
+
+        {/* Ambient orbs */}
+        <motion.div className="absolute pointer-events-none rounded-full z-0"
+          style={{ width: 440, height: 440, background: "radial-gradient(circle, rgba(220,38,38,0.055) 0%, transparent 70%)", top: "18%", left: "12%" }}
+          animate={{ x: [0, 20, -12, 0], y: [0, -16, 14, 0] }}
+          transition={{ duration: 14, repeat: Infinity, ease: "easeInOut" }} />
+        <motion.div className="absolute pointer-events-none rounded-full z-0"
+          style={{ width: 340, height: 340, background: "radial-gradient(circle, rgba(168,85,247,0.05) 0%, transparent 70%)", bottom: "20%", right: "14%" }}
+          animate={{ x: [0, -16, 10, 0], y: [0, 14, -18, 0] }}
+          transition={{ duration: 18, repeat: Infinity, ease: "easeInOut", delay: 2 }} />
+
+        {/* Vignette */}
+        <div className="absolute inset-0 pointer-events-none z-0" style={{ background: "radial-gradient(ellipse at center, transparent 45%, rgba(0,0,0,0.62) 100%)" }} />
+
+        {/* Glassy authentication card container */}
+        <div 
+          className="w-full max-w-sm p-8 rounded-2xl shadow-2xl relative z-10"
+          style={{ 
+            background: "rgba(10,10,12,0.6)", 
+            backdropFilter: "blur(12px)", 
+            WebkitBackdropFilter: "blur(12px)",
+            border: "1px solid rgba(255,255,255,0.04)" 
+          }}
+        >
           <h1 className="text-2xl font-bold text-white mb-2" style={{ fontFamily: 'var(--font-chaste)' }}>Aegis-Red</h1>
           <p className="text-sm text-zinc-500 mb-8">Authenticate to access the dashboard.</p>
           
@@ -110,7 +146,7 @@ export function AuthWrapper({ children }: { children: React.ReactNode }) {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                className="bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-2.5 text-sm text-zinc-200 outline-none focus:border-zinc-500 transition-colors"
+                className="bg-black/40 border border-white/5 rounded-lg px-4 py-2.5 text-sm text-zinc-200 outline-none focus:border-white/20 transition-colors"
                 placeholder="operator@aegis-red.dev"
               />
             </div>
@@ -121,7 +157,7 @@ export function AuthWrapper({ children }: { children: React.ReactNode }) {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                className="bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-2.5 text-sm text-zinc-200 outline-none focus:border-zinc-500 transition-colors"
+                className="bg-black/40 border border-white/5 rounded-lg px-4 py-2.5 text-sm text-zinc-200 outline-none focus:border-white/20 transition-colors"
                 placeholder="••••••••"
               />
             </div>

@@ -6,5 +6,13 @@
         "typing_indicator": "[aria-label*='loading' i]",
         "tab_button_template": "",
         "discovery_url": "https://gemini.google.com/app"
+    },
+    "www.gemini.com": {
+        "chat_input": "[data-testid*='input']",
+        "send_button": "button",
+        "bot_message": "div",
+        "typing_indicator": ".animate-spin",
+        "tab_button_template": "",
+        "discovery_url": "https://www.gemini.com/predictions/NBAF-2627CHAMP/2027-pro-basketball-champion"
     }
 }
