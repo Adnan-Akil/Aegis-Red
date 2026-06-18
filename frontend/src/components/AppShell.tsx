@@ -7,6 +7,8 @@ import { Home, FileText, ScrollText, User as UserIcon, Loader2 } from "lucide-re
 import { useAppContext } from "@/app/context";
 import { supabase } from "@/lib/supabase";
 import type { User } from "@supabase/supabase-js";
+import { IntroTour, useTour } from "@/components/IntroTour";
+
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const {
@@ -20,6 +22,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const { showTour, userId, closeTour } = useTour();
+
 
   const initialProfile = { username: "", email: "", password: "••••••••" };
   const [profileData, setProfileData] = useState(initialProfile);
@@ -61,6 +65,27 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   const handleProfileSave = async () => {
     if (!isProfileEdited) return;
+
+    // ── Input validation before touching Supabase ──
+    const usernameRe = /^[a-zA-Z0-9_\-]{1,32}$/;
+    if (!usernameRe.test(editProfileData.username)) {
+      console.error("[Profile] Invalid username format");
+      return;
+    }
+    const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRe.test(editProfileData.email)) {
+      console.error("[Profile] Invalid email format");
+      return;
+    }
+    if (
+      editProfileData.password !== "••••••••" &&
+      editProfileData.password !== profileData.password &&
+      editProfileData.password.length < 6
+    ) {
+      console.error("[Profile] Password too short");
+      return;
+    }
+
     setIsSaving(true);
     try {
       const updates: any = { data: { username: editProfileData.username } };
@@ -147,12 +172,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           {/* Nav Icons — vertically centered */}
           <div className="flex-1 flex flex-col items-center justify-center space-y-10">
             {[
-              { href: "/", Icon: Home, label: "Home" },
-              { href: "/reports", Icon: FileText, label: "Reports" },
-              { href: "/logs", Icon: ScrollText, label: "Logs" },
-            ].map(({ href, Icon, label }) => (
+              { href: "/", Icon: Home, label: "Home", id: "tour-nav-home" },
+              { href: "/reports", Icon: FileText, label: "Reports", id: "tour-nav-reports" },
+              { href: "/logs", Icon: ScrollText, label: "Logs", id: "tour-nav-logs" },
+            ].map(({ href, Icon, label, id }) => (
               <Link
                 key={href}
+                id={id}
                 href={href}
                 className="relative group flex justify-center items-center cursor-pointer"
               >
@@ -182,6 +208,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           {/* Profile icon — pinned to bottom */}
           <div className="mt-auto pb-2">
             <button
+              id="tour-profile-btn"
               onClick={handleProfileOpen}
               className="w-9 h-9 rounded-full flex items-center justify-center border border-zinc-700/60 cursor-pointer transition-all duration-200 hover:border-zinc-500 hover:scale-105 group"
               style={{ background: "rgba(255,255,255,0.07)" }}
@@ -265,6 +292,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </div>
         </div>
       )}
+
+      {/* ── Intro Tour ── */}
+      {showTour && <IntroTour onDone={closeTour} userId={userId} />}
     </div>
   );
 }
