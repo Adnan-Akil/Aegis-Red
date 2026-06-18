@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ChevronRight, Square, ChevronUp, ChevronDown } from "lucide-react";
+import { ChevronRight, Square, ChevronUp, ChevronDown, AlertTriangle } from "lucide-react";
 import { useAppContext } from "@/app/context";
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
@@ -187,6 +187,16 @@ export default function LandingPage() {
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
   }, [isScanning]);
 
+  // ── Auto-dismiss transient scan messages ──
+  useEffect(() => {
+    if (statusText && !isScanning) {
+      const t = setTimeout(() => {
+        setStatusText("");
+      }, 3000); // 3 seconds timeout
+      return () => clearTimeout(t);
+    }
+  }, [statusText, isScanning, setStatusText]);
+
   const resetMetrics = () => {
     setTargetName("");
     setElapsedSeconds(0);
@@ -194,6 +204,7 @@ export default function LandingPage() {
     setCurrentMutation(0);
     setCurrentSeverity(0);
     setLogLines([]);
+    setStatusText("");
   };
 
   const handleStop = () => {
@@ -219,6 +230,22 @@ export default function LandingPage() {
     setTargetName(getHostname(url));
 
     let wasCompleted = false;
+    let headersReceived = false;
+    let connectionTimeout: ReturnType<typeof setTimeout> | null = null;
+    let readTimeout: ReturnType<typeof setTimeout> | null = null;
+    let isTimeoutTriggered = false;
+    let isConnectTimeoutTriggered = false;
+
+    const resetReadTimeout = () => {
+      if (readTimeout) clearTimeout(readTimeout);
+      readTimeout = setTimeout(() => {
+        if (abortControllerRef.current) {
+          isTimeoutTriggered = true;
+          abortControllerRef.current.abort();
+        }
+      }, 45000); // 45s read idle timeout
+    };
+
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("No authenticated user found");
@@ -226,6 +253,13 @@ export default function LandingPage() {
       // Retrieve the live session token to send as a Bearer token
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.access_token) throw new Error("No active session token");
+
+      connectionTimeout = setTimeout(() => {
+        if (!headersReceived && abortControllerRef.current) {
+          isConnectTimeoutTriggered = true;
+          abortControllerRef.current.abort();
+        }
+      }, 20000); // 20s connection timeout
 
       const response = await fetch("/api/run", {
         method: "POST",
@@ -237,10 +271,14 @@ export default function LandingPage() {
         body: JSON.stringify({ url: url.trim(), headless: headlessMode, mutations: maxMutations, iterations: maxIterations, user_id: user.id }),
       });
 
+      headersReceived = true;
+      if (connectionTimeout) clearTimeout(connectionTimeout);
+
       if (!response.ok) {
         let errData: any = {};
         try { errData = await response.json(); } catch {}
-        throw new Error(errData.error || `Failed to start agent: ${response.statusText}`);
+        const errorMsg = errData.error || `Failed to start agent: ${response.statusText}`;
+        throw new Error(errorMsg);
       }
       const reader = response.body?.getReader();
       const decoder = new TextDecoder();
@@ -248,6 +286,7 @@ export default function LandingPage() {
       if (reader) {
         let partialData = "";
         let mutCount = 0;
+        resetReadTimeout();
 
         while (true) {
           const { done, value } = await reader.read();
@@ -255,6 +294,7 @@ export default function LandingPage() {
             wasCompleted = true;
             break;
           }
+          resetReadTimeout();
           partialData += decoder.decode(value, { stream: true });
           const lines = partialData.split("\n");
           partialData = lines.pop() || "";
@@ -293,14 +333,30 @@ export default function LandingPage() {
         }
       }
     } catch (error: any) {
-      if (error.name !== "AbortError") {
-        console.error(error);
-        setLogLines(prev => [...prev, `❌ Error: ${error.message}`]);
+      let errorMsg = error.message || "An unexpected error occurred.";
+      
+      if (error.name === "AbortError") {
+        if (isConnectTimeoutTriggered) {
+          errorMsg = "Connection timed out: The scanning engine did not respond within 20s.";
+        } else if (isTimeoutTriggered) {
+          errorMsg = "Scan timed out: No progress telemetry received from target for 45s.";
+        } else {
+          errorMsg = "Scan cancelled by operator.";
+        }
+      } else if (errorMsg.includes("fetch") || errorMsg.includes("Failed to fetch") || errorMsg.includes("NetworkError")) {
+        errorMsg = "Connection error: Attack server is offline or unreachable.";
+      } else if (errorMsg.toLowerCase().includes("ssrf") || errorMsg.toLowerCase().includes("private") || errorMsg.toLowerCase().includes("restricted")) {
+        errorMsg = "SSRF Blocked: Target points to a private or restricted network address.";
       }
+      
+      console.error(error);
+      setLogLines(prev => [...prev, `❌ Error: ${errorMsg}`]);
+      setStatusText(errorMsg);
     } finally {
+      if (connectionTimeout) clearTimeout(connectionTimeout);
+      if (readTimeout) clearTimeout(readTimeout);
       if (!wasCompleted) {
         setIsScanning(false);
-        setTimeout(() => setStatusText(""), 4000);
         setUrl("");
       }
     }
@@ -353,11 +409,36 @@ export default function LandingPage() {
             exit={{ opacity: 0, y: -8, transition: { duration: 0.35, ease: "easeIn" } }}
           >
             {/* Greeting */}
-            <motion.div className="mb-5 text-center w-full max-w-2xl"
+            <motion.div className="mb-5 text-center w-full max-w-2xl flex flex-col items-center gap-4"
               initial={{ opacity: 0, y: -12 }} animate={{ opacity: 1, y: -64 }}
               transition={{ duration: 0.5, ease: "easeOut" }}>
-              <h2 className="font-medium text-white mb-2 tracking-tight" style={{ fontSize: "2.43rem" }}>{getGreeting()}, {userName}.</h2>
-              <p className="text-zinc-400" style={{ fontSize: "1.08rem" }}>Probe. Exploit. Harden. — AI red-teaming with surgical precision.</p>
+              <div>
+                <h2 className="font-medium text-white mb-2 tracking-tight" style={{ fontSize: "2.43rem" }}>{getGreeting()}, {userName}.</h2>
+                <p className="text-zinc-400" style={{ fontSize: "1.08rem" }}>Probe. Exploit. Harden. — AI red-teaming with surgical precision.</p>
+              </div>
+
+              <AnimatePresence>
+                {statusText && (
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.95, y: 4 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.95, y: -4 }}
+                    transition={{ duration: 0.22 }}
+                    className={`px-4 py-2 rounded-lg border text-xs font-semibold flex items-center justify-center gap-2 shadow-lg select-none pointer-events-none ${
+                      statusText.toLowerCase().includes("error") || 
+                      statusText.toLowerCase().includes("timed out") || 
+                      statusText.toLowerCase().includes("failed") || 
+                      statusText.toLowerCase().includes("blocked") ||
+                      statusText.toLowerCase().includes("unreachable")
+                        ? "bg-red-500/10 border-red-500/20 text-red-400 shadow-red-950/20"
+                        : "bg-yellow-500/10 border-yellow-500/20 text-yellow-400 shadow-yellow-950/20"
+                    }`}
+                  >
+                    <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                    <span>{statusText}</span>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </motion.div>
 
             {/* Textbox */}

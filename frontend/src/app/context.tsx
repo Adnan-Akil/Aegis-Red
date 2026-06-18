@@ -22,7 +22,7 @@ interface AppContextType {
   targetName: string;
   setTargetName: (val: string) => void;
   elapsedSeconds: number;
-  setElapsedSeconds: (val: number) => void;
+  setElapsedSeconds: (val: number | ((prev: number) => number)) => void;
   currentIteration: number;
   setCurrentIteration: (val: number) => void;
   currentMutation: number;
