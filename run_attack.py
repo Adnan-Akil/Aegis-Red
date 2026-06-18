@@ -17,6 +17,7 @@ sys.stdout.reconfigure(encoding='utf-8')
 
 from src import config
 from src.evaluation.report_generator import generate_cybersec_report
+from src.evaluation.md_compiler import TraceBuilder
 
 from src.memory.schemas import TargetProfile
 from src.memory.supabase_manager import SupabaseManager
@@ -129,12 +130,7 @@ async def run(target_type: str, port: int, iterations: int, mutations: int, user
     
     last_attempt = None
     max_score = 0.0
-    markdown_trace = f"# Aegis-Red Attack Trace: {session_id}\n"
-    markdown_trace += f"**Target**: {target.url}\n**Type**: {target.target_type}\n\n---\n\n"
-
-    # Track whether the current iteration block has been properly closed with a verdict.
-    # If it hasn't when we exit (crash/cancel), we append a clear INTERRUPTED marker.
-    _iter_verdict_written = True  # True = no open block yet
+    trace_builder = TraceBuilder(session_id, target.url, target.target_type)
 
     try:
         async for event in orchestrator_app.astream(initial_state, config):
@@ -142,17 +138,11 @@ async def run(target_type: str, port: int, iterations: int, mutations: int, user
                 if node_name == "planner":
                     if state_update.get("status") == "done":
                         continue
-                    # Close any iteration that opened but never got a verdict
-                    if not _iter_verdict_written:
-                        markdown_trace += "**Response**: *(none — executor failed or timed out)*\n\n"
-                        markdown_trace += "**Verdict**: INTERRUPTED (Score: 0.0)\n**Reasoning**: Iteration did not complete — executor exception or timeout.\n\n---\n\n"
-                        _iter_verdict_written = True
 
                     iteration = state_update.get("iteration", 0)
                     print(f"\n[Iteration {iteration}] 🔄 Planning next attack vector...")
                     db.add_log("PLANNING", f"Planning iteration {iteration}", "info")
-                    markdown_trace += f"## Iteration {iteration}\n"
-                    _iter_verdict_written = False  # New open block
+                    trace_builder.start_iteration(iteration)
 
                 elif node_name == "mutator":
                     pass
@@ -168,7 +158,7 @@ async def run(target_type: str, port: int, iterations: int, mutations: int, user
                         print(f" ├── 💬 Sent: \"{sent_text}\"")
 
                         db.add_log("ATTACK_SENT", f"Sent {attempt.category} payload", "action")
-                        markdown_trace += f"### {attempt.category.upper()}\n**Payload**:\n> {attempt.payload_text}\n\n"
+                        trace_builder.add_payload(attempt.category, attempt.payload_text)
 
                 elif node_name == "evaluator":
                     eval_res = state_update.get("current_evaluation")
@@ -192,9 +182,7 @@ async def run(target_type: str, port: int, iterations: int, mutations: int, user
                         print(f" └── {color_prefix}{icon} Verdict: {eval_res.verdict.upper()} (Score {eval_res.score}){color_suffix} - {reason}")
 
                         db.add_log("EVALUATION", f"Verdict: {eval_res.verdict.upper()} (Score: {eval_res.score})", "info" if eval_res.score == 0 else "warning")
-                        markdown_trace += f"**Response**:\n> {last_attempt.response_text}\n\n"
-                        markdown_trace += f"**Verdict**: {eval_res.verdict.upper()} (Score: {eval_res.score})\n**Reasoning**: {reason}\n\n---\n\n"
-                        _iter_verdict_written = True  # Block properly closed
+                        trace_builder.add_evaluation(last_attempt.response_text, eval_res.verdict, eval_res.score, reason)
 
                         for indicator in eval_res.matched_indicators:
                             if indicator.startswith("SECRET_LEAK:"):
@@ -204,18 +192,14 @@ async def run(target_type: str, port: int, iterations: int, mutations: int, user
 
     except (KeyboardInterrupt, asyncio.CancelledError):
         print("\n\n⚠️  Session cancelled by user.")
-        if not _iter_verdict_written:
-            markdown_trace += "**Response**: *(none — session cancelled)*\n\n"
-            markdown_trace += "**Verdict**: CANCELLED (Score: 0.0)\n**Reasoning**: Session was interrupted by the operator.\n\n---\n\n"
-        markdown_trace += "\n> ⚠️ **Session was cancelled before completion.**\n"
+        trace_builder.close_pending("cancelled", "Session was interrupted by the operator.")
+        trace_builder.set_termination("cancelled", "")
 
     except Exception as e:
         logging.getLogger(__name__).error(f"Orchestrator crashed: {e}", exc_info=True)
         print(f"\n\n❌ Session crashed: {e}")
-        if not _iter_verdict_written:
-            markdown_trace += f"**Response**: *(none — session crashed)*\n\n"
-            markdown_trace += f"**Verdict**: ERROR (Score: 0.0)\n**Reasoning**: Framework exception: {str(e)[:300]}\n\n---\n\n"
-        markdown_trace += f"\n> ❌ **Session terminated with error:** `{str(e)[:300]}`\n"
+        trace_builder.close_pending("error", f"Framework exception: {str(e)[:300]}")
+        trace_builder.set_termination("error", str(e)[:300])
                 
     # Finalize session
     final_verdict = "Secure"
@@ -227,6 +211,8 @@ async def run(target_type: str, port: int, iterations: int, mutations: int, user
     elif max_score > 0:
         final_verdict = "Warning"
         final_score = 5.0
+
+    markdown_trace = trace_builder.render()
 
     print("\n==================================================")
     print(f"Generating formal penetration test report...")
