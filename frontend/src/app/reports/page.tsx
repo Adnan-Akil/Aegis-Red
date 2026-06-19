@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { Download, Loader2, ShieldCheck, Zap, Fingerprint, Activity, Terminal, Trash2, AlertTriangle, Search, FileText } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { useAttackSessions } from "@/lib/hooks/useAttackSessions";
+import { useMarkdownReport } from "@/lib/hooks/useMarkdownReport";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { motion } from "framer-motion";
@@ -17,14 +19,10 @@ function getStatusType(status: string, verdict: string) {
 }
 
 export default function ReportsPage() {
-  const [reports, setReports] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { sessions: reports, isLoading: loading, mutate: mutateReports } = useAttackSessions();
   
-  // Selection & Content
   const [selectedReport, setSelectedReport] = useState<any | null>(null);
-  const [markdownContent, setMarkdownContent] = useState<string>("");
-  const [markdownLoading, setMarkdownLoading] = useState(false);
-  
+
   // Search & Filters
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -33,63 +31,18 @@ export default function ReportsPage() {
   const [clearing, setClearing] = useState(false);
   const [clearError, setClearError] = useState<string | null>(null);
 
+  // Auto-select first report if none selected and reports exist
   useEffect(() => {
-    const fetchReports = async () => {
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return;
+    if (reports.length > 0 && !selectedReport) {
+      setSelectedReport(reports[0]);
+    }
+  }, [reports, selectedReport]);
 
-        const { data, error } = await supabase
-          .from("attack_sessions")
-          .select("*")
-          .eq("user_id", user.id)
-          .order("created_at", { ascending: false });
+  const { content: markdownContentRaw, isLoading: markdownLoading } = useMarkdownReport(selectedReport?.report_file_url || null);
 
-        if (!error && data) {
-          setReports(data);
-          if (data.length > 0) setSelectedReport(data[0]);
-        }
-      } catch (err) {
-        console.error("Fetch failed", err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchReports();
-  }, []);
-
-  // Fetch markdown when selected report changes
-  useEffect(() => {
-    if (!selectedReport) return;
-    
-    const fetchMd = async () => {
-      setMarkdownLoading(true);
-      if (!selectedReport.report_file_url) {
-        setMarkdownContent("### No Formal Report Generated\nThis session either failed or was aborted before a formal report could be compiled.");
-        setMarkdownLoading(false);
-        return;
-      }
-      try {
-        const { data } = await supabase.storage.from("attack-artifacts").createSignedUrl(selectedReport.report_file_url, 60);
-        if (data?.signedUrl) {
-          const res = await fetch(data.signedUrl);
-          const text = await res.text();
-          // Preprocess markdown to ensure tables have blank lines around them
-          const fixedText = text
-            .replace(/([^\n|])\n(\s*\|)/g, '$1\n\n$2') 
-            .replace(/(\|\s*)\n([^\n|])/g, '$1\n\n$2');
-          setMarkdownContent(fixedText);
-        } else {
-          setMarkdownContent("Failed to generate secure URL for report.");
-        }
-      } catch (err) {
-        setMarkdownContent("Failed to load report content from storage.");
-      } finally {
-        setMarkdownLoading(false);
-      }
-    };
-    fetchMd();
-  }, [selectedReport]);
+  const markdownContent = !selectedReport?.report_file_url 
+    ? "### No Formal Report Generated\nThis session either failed or was aborted before a formal report could be compiled."
+    : markdownContentRaw || "";
 
   const handleDownload = async (path: string, defaultName: string) => {
     if (!path) return;
@@ -133,9 +86,8 @@ export default function ReportsPage() {
       if (verifyError) throw verifyError;
 
       if (count === 0) {
-        setReports([]);
+        mutateReports([]);
         setSelectedReport(null);
-        setMarkdownContent("");
         setShowConfirm(false);
       } else {
         setClearError("Delete was blocked by Supabase RLS.");
@@ -187,7 +139,7 @@ export default function ReportsPage() {
   }
 
   return (
-    <div className="flex h-full w-full flex-col bg-transparent overflow-hidden p-6 gap-5 font-['Elms_Sans'] relative">
+    <div className="flex h-full w-full flex-col bg-transparent overflow-hidden p-6 pt-28 gap-5 font-['Elms_Sans'] relative">
       
       {/* Ambient orbs */}
       <motion.div className="absolute pointer-events-none rounded-full z-0"
@@ -283,8 +235,11 @@ export default function ReportsPage() {
         </div>
 
         {/* Last Breach */}
-        <div className="flex-1 rounded-xl flex flex-col justify-center px-6 relative overflow-hidden group"
-             style={{ background: "rgba(16,16,18,0.2)", backdropFilter: "blur(12px)", border: "1px solid rgba(255,255,255,0.04)" }}>
+        <div 
+          className="flex-1 rounded-xl flex flex-col justify-center px-6 relative overflow-hidden group"
+          style={{ background: "rgba(16,16,18,0.2)", backdropFilter: "blur(12px)", border: "1px solid rgba(255,255,255,0.04)" }}
+          title={lastBreachReport ? new Date(lastBreachReport.created_at).toLocaleString() : undefined}
+        >
           <span className="text-[10px] uppercase tracking-widest text-zinc-500 font-semibold mb-0.5">Last Breach</span>
           <span className="text-lg font-bold text-red-400">{lastBreachReport ? getRelativeTime(lastBreachReport.created_at) : "Never"}</span>
         </div>
@@ -304,6 +259,7 @@ export default function ReportsPage() {
               <input 
                 type="text" 
                 placeholder="Search URL or ID..." 
+                title="Search reports by URL or ID"
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
                 className="w-full bg-black/40 border border-white/5 rounded-lg py-2.5 pl-9 pr-4 text-sm text-zinc-200 placeholder-zinc-600 outline-none focus:border-white/20 transition-colors"
@@ -327,7 +283,7 @@ export default function ReportsPage() {
             </div>
             <div className="flex items-center gap-1">
               <Terminal className="w-3 h-3 text-purple-400" />
-              <span>Active</span>
+              <span>Cancelled</span>
             </div>
           </div>
 
@@ -380,6 +336,7 @@ export default function ReportsPage() {
             <div className="shrink-0 p-4 border-t border-white/5 bg-black/20">
               <button
                 onClick={() => setShowConfirm(true)}
+                title="Permanently delete all reports"
                 className="w-full flex items-center justify-center gap-2 rounded-lg border border-red-500/20 bg-red-500/5 py-2.5 text-xs font-semibold uppercase tracking-widest text-red-500/70 transition-all hover:bg-red-500/10 hover:text-red-400"
               >
                 <Trash2 className="w-3.5 h-3.5" /> Purge
@@ -409,7 +366,7 @@ export default function ReportsPage() {
                   <button
                     onClick={() => handleDownload(selectedReport.report_file_url, `report-${selectedReport.id}.md`)}
                     disabled={!selectedReport.report_file_url}
-                    className="flex items-center gap-2 rounded-lg bg-white text-black px-4 py-2 text-sm font-semibold transition-colors hover:bg-zinc-200 disabled:opacity-30 disabled:cursor-not-allowed"
+                    className="flex items-center gap-2 rounded-lg bg-white/10 text-white px-4 py-2 text-sm font-semibold transition-colors hover:bg-white/20 border border-white/10 disabled:opacity-30 disabled:cursor-not-allowed"
                   >
                     <Download className="w-4 h-4" /> Download
                   </button>

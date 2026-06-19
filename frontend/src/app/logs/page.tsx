@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { Download, Loader2, ScrollText, Zap, Fingerprint, Activity, Terminal, Trash2, AlertTriangle, Search, FileText } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { useAttackSessions } from "@/lib/hooks/useAttackSessions";
+import { useMarkdownReport } from "@/lib/hooks/useMarkdownReport";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { motion } from "framer-motion";
@@ -16,12 +18,9 @@ function getStatusType(status: string, verdict: string) {
 }
 
 export default function LogsPage() {
-  const [logs, setLogs] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { sessions: logs, isLoading: loading, mutate: mutateLogs } = useAttackSessions();
   
   const [selectedLog, setSelectedLog] = useState<any | null>(null);
-  const [markdownContent, setMarkdownContent] = useState<string>("");
-  const [markdownLoading, setMarkdownLoading] = useState(false);
   
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -30,61 +29,16 @@ export default function LogsPage() {
   const [clearError, setClearError] = useState<string | null>(null);
 
   useEffect(() => {
-    const fetchLogs = async () => {
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return;
+    if (logs.length > 0 && !selectedLog) {
+      setSelectedLog(logs[0]);
+    }
+  }, [logs, selectedLog]);
 
-        const { data, error } = await supabase
-          .from("attack_sessions")
-          .select("*")
-          .eq("user_id", user.id)
-          .order("created_at", { ascending: false });
+  const { content: markdownContentRaw, isLoading: markdownLoading } = useMarkdownReport(selectedLog?.payload_file_url || null);
 
-        if (!error && data) {
-          setLogs(data);
-          if (data.length > 0) setSelectedLog(data[0]);
-        }
-      } catch (err) {
-        console.error("Fetch failed", err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchLogs();
-  }, []);
-
-  useEffect(() => {
-    if (!selectedLog) return;
-    
-    const fetchMd = async () => {
-      setMarkdownLoading(true);
-      if (!selectedLog.payload_file_url) {
-        setMarkdownContent("### No Execution Trace Found\nThis session did not generate a payload trace.");
-        setMarkdownLoading(false);
-        return;
-      }
-      try {
-        const { data } = await supabase.storage.from("attack-artifacts").createSignedUrl(selectedLog.payload_file_url, 60);
-        if (data?.signedUrl) {
-          const res = await fetch(data.signedUrl);
-          const text = await res.text();
-          // Logs might contain tables, though it's mostly tracing, we apply the fix just in case.
-          const fixedText = text
-            .replace(/([^\n|])\n(\s*\|)/g, '$1\n\n$2') 
-            .replace(/(\|\s*)\n([^\n|])/g, '$1\n\n$2');
-          setMarkdownContent(fixedText);
-        } else {
-          setMarkdownContent("Failed to generate secure URL for trace.");
-        }
-      } catch (err) {
-        setMarkdownContent("Failed to load trace content from storage.");
-      } finally {
-        setMarkdownLoading(false);
-      }
-    };
-    fetchMd();
-  }, [selectedLog]);
+  const markdownContent = !selectedLog?.payload_file_url 
+    ? "### No Execution Trace Found\nThis session did not generate a payload trace."
+    : markdownContentRaw || "";
 
   const handleDownload = async (path: string, defaultName: string) => {
     if (!path) return;
@@ -128,9 +82,8 @@ export default function LogsPage() {
       if (verifyError) throw verifyError;
 
       if (count === 0) {
-        setLogs([]);
+        mutateLogs([]);
         setSelectedLog(null);
-        setMarkdownContent("");
         setShowConfirm(false);
       } else {
         setClearError("Delete was blocked by Supabase RLS.");
@@ -167,7 +120,7 @@ export default function LogsPage() {
   }
 
   return (
-    <div className="flex h-full w-full flex-col bg-transparent overflow-hidden p-6 gap-5 font-['Elms_Sans'] relative">
+    <div className="flex h-full w-full flex-col bg-transparent overflow-hidden p-6 pt-28 gap-5 font-['Elms_Sans'] relative">
       
       {/* Ambient orbs */}
       <motion.div className="absolute pointer-events-none rounded-full z-0"
@@ -223,12 +176,6 @@ export default function LogsPage() {
         </div>
       )}
 
-      {/* ─── Header ─── */}
-      <div className="shrink-0 flex flex-col relative z-10">
-        <h2 className="text-2xl font-semibold tracking-tight text-white">System Execution Logs</h2>
-        <p className="text-xs uppercase tracking-widest text-zinc-500 mt-1">Raw telemetry & trace data</p>
-      </div>
-
       {/* ─── Bottom Split (Takes remaining height) ─── */}
       <div className="flex-1 flex gap-4 min-h-0 relative z-10">
         
@@ -243,6 +190,7 @@ export default function LogsPage() {
               <input 
                 type="text" 
                 placeholder="Search URL or ID..." 
+                title="Search logs by URL or ID"
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
                 className="w-full bg-black/40 border border-white/5 rounded-lg py-2.5 pl-9 pr-4 text-sm text-zinc-200 placeholder-zinc-600 outline-none focus:border-white/20 transition-colors"
@@ -266,7 +214,7 @@ export default function LogsPage() {
             </div>
             <div className="flex items-center gap-1">
               <Terminal className="w-3 h-3 text-purple-400" />
-              <span>Active</span>
+              <span>Cancelled</span>
             </div>
           </div>
 
@@ -319,6 +267,7 @@ export default function LogsPage() {
             <div className="shrink-0 p-4 border-t border-white/5 bg-black/20">
               <button
                 onClick={() => setShowConfirm(true)}
+                title="Permanently delete all logs"
                 className="w-full flex items-center justify-center gap-2 rounded-lg border border-red-500/20 bg-red-500/5 py-2.5 text-xs font-semibold uppercase tracking-widest text-red-500/70 transition-all hover:bg-red-500/10 hover:text-red-400"
               >
                 <Trash2 className="w-3.5 h-3.5" /> Purge Logs
@@ -348,9 +297,9 @@ export default function LogsPage() {
                   <button
                     onClick={() => handleDownload(selectedLog.payload_file_url, `trace-${selectedLog.id}.md`)}
                     disabled={!selectedLog.payload_file_url}
-                    className="flex items-center gap-2 rounded-lg bg-white text-black px-4 py-2 text-sm font-semibold transition-colors hover:bg-zinc-200 disabled:opacity-30 disabled:cursor-not-allowed"
+                    className="flex items-center gap-2 rounded-lg bg-white/10 text-white px-4 py-2 text-sm font-semibold transition-colors hover:bg-white/20 border border-white/10 disabled:opacity-30 disabled:cursor-not-allowed"
                   >
-                    <Download className="w-4 h-4" /> Download Trace
+                    <Download className="w-4 h-4" /> Download
                   </button>
                 </div>
               </div>

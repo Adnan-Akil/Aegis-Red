@@ -129,14 +129,16 @@ export function AuthWrapper({ children }: { children: React.ReactNode }) {
         <div 
           className="w-full max-w-sm p-8 rounded-2xl shadow-2xl relative z-10"
           style={{ 
-            background: "rgba(10,10,12,0.6)", 
-            backdropFilter: "blur(12px)", 
-            WebkitBackdropFilter: "blur(12px)",
-            border: "1px solid rgba(255,255,255,0.04)" 
+            background: "rgba(20, 20, 24, 0.45)", 
+            backdropFilter: "blur(16px)", 
+            WebkitBackdropFilter: "blur(16px)",
+            border: "1px solid rgba(255,255,255,0.08)" 
           }}
         >
-          <h1 className="text-2xl font-bold text-white mb-2" style={{ fontFamily: 'var(--font-chaste)' }}>Aegis-Red</h1>
-          <p className="text-sm text-zinc-500 mb-8">Authenticate to access the dashboard.</p>
+          <div className="text-center">
+            <h1 className="text-2xl font-bold text-white mb-2" style={{ fontFamily: 'var(--font-chaste)' }}>Aegis-Red</h1>
+            <p className="text-sm text-zinc-500 mb-8">Authenticate to access the dashboard.</p>
+          </div>
           
           <form onSubmit={handleAuth} className="flex flex-col gap-4">
             <div className="flex flex-col gap-1.5">
@@ -146,7 +148,7 @@ export function AuthWrapper({ children }: { children: React.ReactNode }) {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                className="bg-black/40 border border-white/5 rounded-lg px-4 py-2.5 text-sm text-zinc-200 outline-none focus:border-white/20 transition-colors"
+                className="bg-black/20 border border-white/5 rounded-lg px-4 py-2.5 text-sm text-zinc-200 outline-none focus:border-white/20 transition-colors backdrop-blur-sm"
                 placeholder="operator@aegis-red.dev"
               />
             </div>
@@ -157,7 +159,7 @@ export function AuthWrapper({ children }: { children: React.ReactNode }) {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                className="bg-black/40 border border-white/5 rounded-lg px-4 py-2.5 text-sm text-zinc-200 outline-none focus:border-white/20 transition-colors"
+                className="bg-black/20 border border-white/5 rounded-lg px-4 py-2.5 text-sm text-zinc-200 outline-none focus:border-white/20 transition-colors backdrop-blur-sm"
                 placeholder="••••••••"
               />
             </div>
@@ -168,13 +170,14 @@ export function AuthWrapper({ children }: { children: React.ReactNode }) {
               </div>
             )}
 
-            <button 
+            <motion.button 
               type="submit" 
+              whileTap={{ scale: 0.96 }}
               disabled={authLoading}
               className="mt-2 w-full bg-zinc-200 text-black hover:bg-white transition-colors font-medium py-2.5 rounded-lg text-sm flex items-center justify-center disabled:opacity-50"
             >
               {authLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : (isSignUp ? "Sign Up" : "Sign In")}
-            </button>
+            </motion.button>
           </form>
 
           <div className="mt-6 text-center">
@@ -191,5 +194,14 @@ export function AuthWrapper({ children }: { children: React.ReactNode }) {
   }
 
   // Once authenticated, render children (AppShell)
-  return <>{children}</>;
+  return (
+    <motion.div
+      initial={{ opacity: 0, scale: 0.98 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ duration: 0.6, ease: "easeOut" }}
+      className="h-full w-full"
+    >
+      {children}
+    </motion.div>
+  );
 }

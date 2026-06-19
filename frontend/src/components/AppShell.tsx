@@ -8,6 +8,7 @@ import { useAppContext } from "@/app/context";
 import { supabase } from "@/lib/supabase";
 import type { User } from "@supabase/supabase-js";
 import { IntroTour, useTour } from "@/components/IntroTour";
+import { useAttackSessions } from "@/lib/hooks/useAttackSessions";
 
 
 export function AppShell({ children }: { children: React.ReactNode }) {
@@ -24,6 +25,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const { showTour, userId, closeTour } = useTour();
+
+  // Globally prefetch and cache session data
+  useAttackSessions();
 
 
   const initialProfile = { username: "", email: "", password: "••••••••" };
@@ -143,39 +147,31 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       />
       <div className="fixed inset-0 z-0 pointer-events-none bg-black/40" />
 
-      {/* ── Top Header — spans full width above sidebar ── */}
-      <header
-        className="w-full flex justify-center items-center px-8 py-5 shrink-0 z-30 relative"
-        style={{
-          ...glassPanel,
-          borderBottom: "1px solid rgba(255,255,255,0.07)",
-        }}
-      >
-        <h1
-          className="text-2xl font-bold tracking-widest text-white select-none font-chaste"
-          style={{
-            fontFamily: "var(--font-chaste)",
-            letterSpacing: "0.2em",
-            fontSize: isHomePage ? "1.65rem" : "1.5rem"
-          }}
-        >
-          Aegis-Red
-        </h1>
-      </header>
-
-      {/* ── Row: sidebar + main content ── */}
-      <div className="flex flex-1 overflow-hidden relative z-10">
-
-        {/* ── Left Sidebar ── */}
-        <aside
-          className="w-20 h-full flex flex-col items-center py-6 z-20 shrink-0 relative"
+      {/* ── Floating Pill Navbar ── */}
+      <div className="fixed top-0 left-0 right-0 w-full flex justify-center pt-6 z-40 pointer-events-none">
+        <nav
+          className="flex items-center gap-12 px-12 py-3 rounded-full pointer-events-auto shadow-2xl"
           style={{
             ...glassPanel,
-            borderRight: "1px solid rgba(255,255,255,0.07)",
+            border: "1px solid rgba(255,255,255,0.07)",
           }}
         >
-          {/* Nav Icons — vertically centered */}
-          <div className="flex-1 flex flex-col items-center justify-center space-y-8">
+          {/* Logo / Title */}
+          <h1
+            className="font-bold tracking-widest text-white select-none font-chaste drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]"
+            style={{
+              fontFamily: "var(--font-chaste)",
+              letterSpacing: "0.2em",
+              fontSize: "1.2rem"
+            }}
+          >
+            Aegis-Red
+          </h1>
+
+          <div className="w-px h-6 bg-white/10" />
+
+          {/* Nav Icons */}
+          <div className="flex items-center gap-6">
             {[
               { href: "/", Icon: Home, label: "Home", id: "tour-nav-home" },
               { href: "/reports", Icon: FileText, label: "Reports", id: "tour-nav-reports" },
@@ -185,35 +181,30 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 key={href}
                 id={id}
                 href={href}
-                className="relative group flex flex-col items-center justify-center cursor-pointer gap-1.5"
+                className="relative group flex items-center justify-center cursor-pointer gap-2"
               >
                 {pathname === href && (
                   <span
-                    className="absolute -left-6 w-0.5 rounded-full bg-white/80"
+                    className="absolute -bottom-3 left-1/2 -translate-x-1/2 h-0.5 rounded-full bg-white/80"
                     style={{
-                      height: isHomePage ? "35.2px" : "32px",
+                      width: "20px",
                       boxShadow: "0 0 8px 2px rgba(255,255,255,0.4)"
                     }}
                   />
                 )}
                 <Icon
-                  className={`transition-all duration-200 ${
+                  className={`transition-all duration-200 drop-shadow-[0_2px_4px_rgba(0,0,0,0.4)] ${
                     pathname === href
-                      ? "text-white drop-shadow-[0_0_6px_rgba(255,255,255,0.6)]"
+                      ? "text-white"
                       : "text-zinc-500 group-hover:text-zinc-200 group-hover:scale-110"
                   }`}
-                  style={{
-                    width: isHomePage ? "22px" : "20px",
-                    height: isHomePage ? "22px" : "20px"
-                  }}
+                  style={{ width: "20px", height: "20px" }}
                 />
                 <span
-                  className={`uppercase tracking-widest font-mono transition-colors duration-200 ${
+                  className={`uppercase tracking-widest font-mono transition-colors duration-200 drop-shadow-[0_1px_2px_rgba(0,0,0,0.4)] ${
                     pathname === href ? "text-white font-semibold" : "text-zinc-500 group-hover:text-zinc-300"
                   }`}
-                  style={{
-                    fontSize: isHomePage ? "9.9px" : "9px"
-                  }}
+                  style={{ fontSize: "10px" }}
                 >
                   {label}
                 </span>
@@ -221,43 +212,42 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             ))}
           </div>
 
-          {/* Profile icon — pinned to bottom */}
-          <div className="mt-auto pb-2">
-            <button
-              id="tour-profile-btn"
-              onClick={handleProfileOpen}
-              className="flex flex-col items-center gap-1.5 group cursor-pointer"
-            >
-              <div
-                className="rounded-full flex items-center justify-center border border-zinc-700/60 transition-all duration-200 hover:border-zinc-500 hover:scale-105"
-                style={{
-                  background: "rgba(255,255,255,0.07)",
-                  width: isHomePage ? "40px" : "36px",
-                  height: isHomePage ? "40px" : "36px"
-                }}
-              >
-                <UserIcon
-                  className="text-zinc-400 group-hover:text-zinc-200 transition-colors"
-                  style={{
-                    width: isHomePage ? "18px" : "16px",
-                    height: isHomePage ? "18px" : "16px"
-                  }}
-                />
-              </div>
-              <span
-                className="uppercase tracking-widest font-mono text-zinc-500 group-hover:text-zinc-300 transition-colors"
-                style={{
-                  fontSize: isHomePage ? "9.9px" : "9px"
-                }}
-              >
-                Profile
-              </span>
-            </button>
-          </div>
-        </aside>
+          <div className="w-px h-6 bg-white/10" />
 
-        {/* ── Main Content ── */}
-        <main className="flex-1 overflow-y-auto overflow-x-hidden relative">
+          {/* Profile */}
+          <button
+            id="tour-profile-btn"
+            onClick={handleProfileOpen}
+            className="flex items-center gap-2 group cursor-pointer"
+          >
+            <div
+              className="rounded-full flex items-center justify-center border border-zinc-700/60 transition-all duration-200 hover:border-zinc-500 hover:scale-105 shadow-[0_2px_8px_rgba(0,0,0,0.4)] relative overflow-hidden"
+              style={{
+                background: "rgba(255,255,255,0.05)",
+                backdropFilter: "blur(12px)",
+                WebkitBackdropFilter: "blur(12px)",
+                width: "32px",
+                height: "32px"
+              }}
+            >
+              <UserIcon
+                className="text-zinc-400 group-hover:text-zinc-200 transition-colors drop-shadow-[0_1px_2px_rgba(0,0,0,0.4)]"
+                style={{ width: "16px", height: "16px" }}
+              />
+            </div>
+            <span
+              className="uppercase tracking-widest font-mono text-zinc-500 group-hover:text-zinc-300 transition-colors drop-shadow-[0_1px_2px_rgba(0,0,0,0.4)]"
+              style={{ fontSize: "10px" }}
+            >
+              Profile
+            </span>
+          </button>
+        </nav>
+      </div>
+
+      {/* ── Main Content ── */}
+      <div className="flex-1 overflow-hidden relative z-10">
+        <main className="h-full w-full overflow-y-auto overflow-x-hidden relative">
           {children}
         </main>
       </div>
@@ -266,15 +256,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       {isProfileOpen && (
         <div
           onClick={handleProfileClose}
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm cursor-pointer"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 cursor-pointer backdrop-blur-md"
         >
           <div
             onClick={(e) => e.stopPropagation()}
             className="border rounded-2xl p-6 w-full max-w-sm shadow-2xl flex flex-col cursor-default"
             style={{
-              background: "rgba(18,18,20,0.88)",
-              backdropFilter: "blur(24px)",
-              WebkitBackdropFilter: "blur(24px)",
+              background: "rgba(20, 20, 24, 0.45)",
+              backdropFilter: "blur(16px)",
+              WebkitBackdropFilter: "blur(16px)",
               borderColor: "rgba(255,255,255,0.08)",
             }}
           >

@@ -53,7 +53,8 @@ function ModeBox({ id, value, onChange }: { id?: string; value: boolean; onChang
   return (
     <div id={id} ref={scrollRef}
       className="flex-1 flex flex-col px-3 py-2.5 rounded-lg cursor-ns-resize select-none relative overflow-hidden group"
-      style={{ background: "rgba(14,14,16,0.48)", backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)", border: "1px solid rgba(255,255,255,0.06)", minWidth: 0 }}>
+      style={{ background: "rgba(14,14,16,0.48)", backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)", border: "1px solid rgba(255,255,255,0.06)", minWidth: 0 }}
+      title={id === "tour-browser-mode" ? "Toggle between Headless and Headed browser execution" : undefined}>
       <span className="text-[9.9px] uppercase tracking-widest text-zinc-300 font-semibold mb-1.5">Browser Mode</span>
       <div className="flex items-center justify-between gap-2 overflow-hidden">
         <div className="relative h-5 flex-1 overflow-hidden flex items-center">
@@ -87,7 +88,8 @@ function StepperBox({ id, label, value, min, max, onChange }: { id?: string; lab
   return (
     <div id={id} ref={scrollRef}
       className="flex-1 flex flex-col px-3 py-2.5 rounded-lg cursor-ns-resize select-none relative overflow-hidden group"
-      style={{ background: "rgba(14,14,16,0.48)", backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)", border: "1px solid rgba(255,255,255,0.06)", minWidth: 0 }}>
+      style={{ background: "rgba(14,14,16,0.48)", backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)", border: "1px solid rgba(255,255,255,0.06)", minWidth: 0 }}
+      title={label === "Mutations" ? "Set the maximum number of exploit mutations per iteration" : label === "Iterations" ? "Set the maximum number of attack iterations" : undefined}>
       <span className="text-[9.9px] uppercase tracking-widest text-zinc-300 font-semibold mb-1.5">{label}</span>
       <div className="flex items-center justify-between gap-2 overflow-hidden">
         <div className="relative h-5 flex-1 overflow-hidden flex items-center">
@@ -404,7 +406,7 @@ export default function LandingPage() {
           <motion.div
             key="idle-hero"
             className="absolute inset-0 flex flex-col items-center justify-center px-6 z-10"
-            style={{ paddingTop: "8%" }}
+            style={{ paddingTop: "12%" }}
             initial={{ opacity: 1 }}
             exit={{ opacity: 0, y: -8, transition: { duration: 0.35, ease: "easeIn" } }}
           >
@@ -456,8 +458,9 @@ export default function LandingPage() {
                 style={{ background: "rgba(16,16,18,0.86)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)", border: "1px solid rgba(255,255,255,0.08)" }}>
                 <input type="url" placeholder="Enter target AI URL..." value={url} onChange={e => setUrl(e.target.value)} required
                   className="flex-1 bg-transparent border-none outline-none text-zinc-200 placeholder-white/40 px-4 py-3.5 text-[16.5px]" />
-                <motion.button id="tour-launch-btn" type="submit" disabled={!url} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
-                  className="bg-zinc-800/90 text-white hover:bg-zinc-700 px-4 py-2 mr-1 rounded-md font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center h-10 w-12">
+                <motion.button id="tour-launch-btn" type="submit" disabled={!url} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.96 }}
+                  title="Launch Attack Sequence"
+                  className="bg-white text-black hover:bg-zinc-200 px-4 py-2 mr-1 rounded-md font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center h-10 w-12">
                   <ChevronRight className="w-5 h-5" />
                 </motion.button>
               </form>
