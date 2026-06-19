@@ -114,6 +114,7 @@ class PlaywrightDriver:
         )
         self._context = await self._browser.new_context(
             viewport={"width": 1280, "height": 900},
+            extra_http_headers={"ngrok-skip-browser-warning": "1"}
         )
         self._page = await self._context.new_page()
         
