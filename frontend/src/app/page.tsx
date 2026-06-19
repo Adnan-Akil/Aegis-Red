@@ -483,7 +483,7 @@ export default function LandingPage() {
         {isScanning && (
           <motion.div
             key="scan-layout"
-            className="absolute inset-0 flex flex-col z-10"
+            className="absolute inset-0 flex flex-col z-10 pt-24"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1, transition: { duration: 0.4, delay: 0.3 } }}
             exit={{ opacity: 0, transition: { duration: 0.25 } }}
