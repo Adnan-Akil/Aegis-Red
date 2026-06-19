@@ -87,8 +87,8 @@ function StepperBox({ id, label, value, min, max, onChange }: { id?: string; lab
   const scrollRef = useScrollControl(step);
   return (
     <div id={id} ref={scrollRef}
-      className="flex-1 flex flex-col px-3 py-2.5 rounded-lg cursor-ns-resize select-none relative overflow-hidden group"
-      style={{ background: "rgba(14,14,16,0.48)", backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)", border: "1px solid rgba(255,255,255,0.06)", minWidth: 0 }}
+      className="flex flex-col px-3 py-2.5 rounded-lg cursor-ns-resize select-none relative overflow-hidden group min-w-[140px]"
+      style={{ background: "rgba(14,14,16,0.48)", backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)", border: "1px solid rgba(255,255,255,0.06)" }}
       title={label === "Mutations" ? "Set the maximum number of exploit mutations per iteration" : label === "Iterations" ? "Set the maximum number of attack iterations" : undefined}>
       <span className="text-[9.9px] uppercase tracking-widest text-zinc-300 font-semibold mb-1.5">{label}</span>
       <div className="flex items-center justify-between gap-2 overflow-hidden">
@@ -467,10 +467,9 @@ export default function LandingPage() {
             </motion.div>
 
             {/* Config row */}
-            <motion.div className="w-full max-w-2xl mt-3 flex gap-2"
+            <motion.div className="w-full max-w-2xl mt-3 flex justify-center gap-3"
               initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: -24 }}
               transition={{ duration: 0.45, delay: 0.22, ease: "easeOut" }}>
-              <ModeBox id="tour-browser-mode" value={headlessMode} onChange={setHeadlessMode} />
               <StepperBox id="tour-mutations" label="Mutations" value={maxMutations} min={1} max={5} onChange={setMaxMutations} />
               <StepperBox id="tour-iterations" label="Iterations" value={maxIterations} min={1} max={15} onChange={setMaxIterations} />
             </motion.div>
