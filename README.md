@@ -4,6 +4,8 @@
 
 *A B.Tech Computer Science & Engineering Capstone Project | Amity University Dubai*
 
+🚀 **Live Demo:** [https://aegis-red-vz8g.vercel.app/](https://aegis-red-vz8g.vercel.app/)
+
 ---
 
 [![FastAPI](https://img.shields.io/badge/Backend-FastAPI-009688.svg?style=flat&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
@@ -34,6 +36,19 @@ Traditional vulnerability scanners look for static patterns (like SQL injections
 - [⚙️ 8. Setup & Installation](#8-setup--installation)
 - [🚀 9. Usage & Execution](#9-usage--execution)
 - [🤝 10. Contributions & Collaboration](#10-contributions--collaboration)
+
+---
+
+## 🖼️ Application Interface
+
+<p align="center">
+  <img src="assets/homepage_UI.png" width="48%" alt="Aegis-Red Homepage Dashboard" />
+  <img src="assets/reportspage_UI.png" width="48%" alt="Aegis-Red Generated Reports" />
+</p>
+<p align="center">
+  <img src="assets/loginpage_UI.png" width="48%" alt="Aegis-Red Login Screen" />
+  <img src="assets/logspage_UI.png" width="48%" alt="Aegis-Red Real-Time Exploit Logs" />
+</p>
 
 ---
 
