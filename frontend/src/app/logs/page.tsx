@@ -72,7 +72,7 @@ export default function LogsPage() {
 
       const { data: rows, error: fetchError } = await supabase.from("attack_sessions").select("id").eq("user_id", user.id);
       if (fetchError) throw fetchError;
-      if (!rows || rows.length === 0) { setLogs([]); setShowConfirm(false); return; }
+      if (!rows || rows.length === 0) { mutateLogs([]); setShowConfirm(false); return; }
 
       const ids = rows.map((r) => r.id);
       const { error: deleteError } = await supabase.from("attack_sessions").delete().in("id", ids);
