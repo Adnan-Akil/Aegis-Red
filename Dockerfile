@@ -13,7 +13,6 @@ ENV PORT=7860
 RUN apt-get update && apt-get install -y \
     wget \
     gnupg \
-    libgconf-2-4 \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy the requirements file into the container
