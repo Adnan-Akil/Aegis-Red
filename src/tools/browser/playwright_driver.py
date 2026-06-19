@@ -105,7 +105,7 @@ class PlaywrightDriver:
     async def __aenter__(self) -> "PlaywrightDriver":
         self._playwright = await async_playwright().start()
         
-        headless_env = os.environ.get("PLAYWRIGHT_HEADLESS", "false").lower() == "true"
+        headless_env = os.environ.get("PLAYWRIGHT_HEADLESS", "true").lower() == "true"
         
         self._browser = await self._playwright.chromium.launch(
             headless=headless_env,
