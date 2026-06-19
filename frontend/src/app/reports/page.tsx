@@ -76,7 +76,7 @@ export default function ReportsPage() {
 
       const { data: rows, error: fetchError } = await supabase.from("attack_sessions").select("id").eq("user_id", user.id);
       if (fetchError) throw fetchError;
-      if (!rows || rows.length === 0) { setReports([]); setShowConfirm(false); return; }
+      if (!rows || rows.length === 0) { mutateReports([]); setShowConfirm(false); return; }
 
       const ids = rows.map((r) => r.id);
       const { error: deleteError } = await supabase.from("attack_sessions").delete().in("id", ids);
