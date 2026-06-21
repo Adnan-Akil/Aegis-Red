@@ -21,7 +21,11 @@ function getStatusType(status: string, verdict: string) {
 export default function ReportsPage() {
   const { sessions: reports, isLoading: loading, mutate: mutateReports } = useAttackSessions();
   
-  const [selectedReport, setSelectedReport] = useState<any | null>(null);
+  const [selectedReportId, setSelectedReportId] = useState<string | null>(null);
+  
+  const selectedReport = selectedReportId 
+    ? reports.find((r: any) => r.id === selectedReportId) 
+    : reports[0] || null;
 
   // Search & Filters
   const [searchQuery, setSearchQuery] = useState("");
@@ -30,13 +34,6 @@ export default function ReportsPage() {
   const [showConfirm, setShowConfirm] = useState(false);
   const [clearing, setClearing] = useState(false);
   const [clearError, setClearError] = useState<string | null>(null);
-
-  // Auto-select first report if none selected and reports exist
-  useEffect(() => {
-    if (reports.length > 0 && !selectedReport) {
-      setSelectedReport(reports[0]);
-    }
-  }, [reports, selectedReport]);
 
   const { content: markdownContentRaw, isLoading: markdownLoading } = useMarkdownReport(selectedReport?.report_file_url || null);
 
@@ -87,7 +84,7 @@ export default function ReportsPage() {
 
       if (count === 0) {
         mutateReports([]);
-        setSelectedReport(null);
+        setSelectedReportId(null);
         setShowConfirm(false);
       } else {
         setClearError("Delete was blocked by Supabase RLS.");
@@ -310,7 +307,7 @@ export default function ReportsPage() {
                 return (
                   <div 
                     key={r.id} 
-                    onClick={() => setSelectedReport(r)}
+                    onClick={() => setSelectedReportId(r.id)}
                     className={`cursor-pointer rounded-lg p-3 flex flex-col gap-2 border transition-all duration-200 ${
                       isSelected ? "bg-white/5 border-white/10" : "bg-transparent border-transparent hover:bg-white/[0.02] hover:border-white/5"
                     }`}
