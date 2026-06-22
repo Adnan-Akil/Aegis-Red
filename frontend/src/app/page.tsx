@@ -125,11 +125,13 @@ function StatBar({ label, value, max, display, color }: {
         <span className="text-[12.1px] text-zinc-300 font-semibold tabular-nums">{display}</span>
       </div>
       <div className="relative h-1 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.06)" }}>
-        <motion.div
+        <div
           className="absolute left-0 top-0 h-full rounded-full"
-          style={{ background: color }}
-          animate={{ width: `${pct}%` }}
-          transition={{ type: "spring", stiffness: 120, damping: 20 }}
+          style={{ 
+            background: color, 
+            width: `${pct}%`, 
+            transition: "width 0.4s cubic-bezier(0.4, 0, 0.2, 1)" 
+          }}
         />
       </div>
     </div>
@@ -245,7 +247,7 @@ export default function LandingPage() {
           isTimeoutTriggered = true;
           abortControllerRef.current.abort();
         }
-      }, 45000); // 45s read idle timeout
+      }, 120000); // 120s read idle timeout to accommodate LLM + Chart Generation
     };
 
     try {

@@ -5,17 +5,17 @@ Sets WindowsProactorEventLoopPolicy before uvicorn creates any event loop,
 which is required for Playwright's subprocess spawning to work.
 """
 import sys
+import os
 import asyncio
 
-# ── Must happen before ANY asyncio / uvicorn import ───────────────────────────
-if sys.platform == "win32":
-    asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
-    loop = asyncio.ProactorEventLoop()
-    asyncio.set_event_loop(loop)
-
-import uvicorn
-
-if __name__ == "__main__":
+def start_server():
+    # Insert cwd into sys.path since multiprocessing spawn loses it
+    sys.path.insert(0, os.getcwd())
+    
+    if sys.platform == "win32":
+        asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
+    
+    import uvicorn
     from uvicorn import Config, Server
     from backend.main import app
 
@@ -23,5 +23,15 @@ if __name__ == "__main__":
     server = Server(config)
 
     # Run on the configured event loop
-    loop = asyncio.get_event_loop()
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
     loop.run_until_complete(server.serve())
+
+if __name__ == "__main__":
+    try:
+        from watchfiles import run_process
+        print("Starting backend with watchfiles auto-reload...")
+        run_process('backend', 'src', target=start_server)
+    except ImportError:
+        print("watchfiles not installed. Running without auto-reload.")
+        start_server()
