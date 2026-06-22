@@ -136,15 +136,7 @@ def compile_report(data: Dict[str, Any], target_url: str, session_id: str) -> st
     # Extract data with safe defaults
     exec_summary = data.get("executive_summary") or "No executive summary provided."
     overall_risk = data.get("overall_risk") or "Low"
-    
-    # Map risk to emoji representation
-    risk_emojis = {
-        "critical": "🔴 Critical",
-        "high": "🟠 High",
-        "medium": "🟡 Medium",
-        "low": "🟢 Low"
-    }
-    risk_level = risk_emojis.get(overall_risk.lower(), f"🟢 {overall_risk}")
+    risk_level = overall_risk.upper()
 
     metrics = data.get("metrics") or {}
     total_iter = metrics.get("total_iterations", 0)
@@ -164,43 +156,153 @@ def compile_report(data: Dict[str, Any], target_url: str, session_id: str) -> st
     
     # ─── 1. Title & Header ───
     md = [
-        "# 🔴 Aegis-Red | AI Penetration Test Report",
-        "> **Autonomous AI Security Audit** — Confidential | Aegis-Red Framework",
-        "",
-        f"**Date:** {today} | **Target:** `{target_url}` | **Session ID:** `{session_id}`",
+        "# **AEGIS-RED | AUTONOMOUS AI SECURITY AUDIT**",
+        "**INTERNAL SECURITY ASSESSMENT**",
         "",
         "---",
         "",
-        "## 1. Executive Summary",
+        f"* **Date:** {today}",
+        f"* **Target Environment:** `{target_url}`",
+        f"* **Session ID:** `{session_id}`",
+        "",
+        "---",
+        "",
+        "## **1. Executive Summary**",
         "",
         exec_summary,
         "",
-        "| Metric | Value |",
-        "|---|---|",
-        f"| **Overall Risk Level** | {risk_level} |",
-        f"| **Total Iterations** | {total_iter} |",
+        f"**The overall risk posture is classified as {risk_level}.**",
+        "",
+        "**Assessment Metrics**",
+        "",
+        "| Metric | Status / Value |",
+        "| --- | --- |",
+        f"| **Overall Risk Level** | **{risk_level}** |",
+        f"| **Total Attack Iterations** | {total_iter} |",
         f"| **Successful Exploits** | {success_exploits} |",
         f"| **Partial Exploits** | {partial_exploits} |",
         f"| **Detected Architecture** | {arch} |",
-        f"| **Guardrails Detected** | {guardrails} |",
+        f"| **Active Guardrails** | {guardrails} |",
+        "",
+    ]
+    
+    # Extract charts and captions
+    chart_urls = data.get("chart_urls") or {}
+    chart_captions = data.get("chart_captions") or {}
+    
+    # Embed Executive Summary Charts (Donut & Radar)
+    if chart_urls.get("donut") and chart_urls.get("radar"):
+        caption1 = chart_captions.get('donut', 'Vulnerability Severity Distribution')
+        caption2 = chart_captions.get('radar', 'Threat Class Exposure Profile')
+        md.extend([
+            "| Vulnerability Severity Distribution | Threat Class Exposure Profile |",
+            "| :---: | :---: |",
+            f"| ![Vulnerability Severity Distribution]({chart_urls['donut']}) | ![Threat Class Exposure Profile]({chart_urls['radar']}) |",
+            f"| *Figure 1: {caption1}* | *Figure 2: {caption2}* |",
+            ""
+        ])
+    elif chart_urls.get("donut"):
+        md.append(f"![Vulnerability Severity Distribution]({chart_urls['donut']})")
+        caption = chart_captions.get('donut', 'Vulnerability Severity Distribution')
+        md.append(f"*Figure 1: {caption}*")
+        md.append("")
+        md.append("*Tested against Prompt Injection, Data Leakage, Tool Abuse, and Privilege Escalation. Target successfully defended against all categories.*")
+        md.append("")
+        
+    md.extend([
+        "---",
+        "",
+        "## **2. Reconnaissance & Surface Analysis**",
+        "",
+    ])
+    
+    if chart_urls.get("surface_map"):
+        md.append(f"![Attack Surface Map]({chart_urls['surface_map']})")
+        md.append("*Figure: Attack Surface Conceptual Map*")
+        md.append("")
+
+    md.extend([
+        "**System Architecture**",
+        "",
+        surface_arch,
+        "",
+        "**Defense Posture & Guardrails**",
+        "",
+        defence_posture,
+        "",
+        "**Detected Guardrails Details:**",
+        "",
+        detected_gr,
         "",
         "---",
         "",
-        "## 2. Reconnaissance & Surface Analysis",
+        "## **3. Detailed Vulnerability Findings**",
         "",
-        f"**Surface Architecture:** {surface_arch}",
-        "",
-        f"**Detected Guardrails:** {detected_gr}",
-        "",
-        f"**Defence Posture:** {defence_posture}",
-        "",
-        "---",
-        "",
-        "## 3. Attack Timeline",
+    ])
+
+    # Append findings
+    if not findings:
+        md.extend([
+            "No active vulnerabilities or successful exploits were confirmed during this audit campaign.",
+            "The target system demonstrates high resilience against direct jailbreak vectors and prompt exfiltration.",
+            "Continue monitoring and logging all model inputs and output queries to prevent drift.",
+            ""
+        ])
+    else:
+        for idx, f in enumerate(findings, start=1):
+            title = f.get("title") or "Unnamed Vulnerability"
+            severity = f.get("severity") or "Medium"
+            category = f.get("category") or "General"
+            cvss = f.get("cvss_equivalent") or "5.0"
+            impact = f.get("impact") or "N/A"
+            poc = f.get("proof_of_concept") or "N/A"
+            evidence = f.get("evidence") or "N/A"
+            root_cause = f.get("root_cause") or "Design flaw in model alignment or prompt logic."
+            remediation = f.get("remediation") or []
+
+            md.extend([
+                f"**FINDING-{idx:02d}: {title}**",
+                "",
+                "| Attribute | Detail |",
+                "| --- | --- |",
+                f"| **Severity** | **{severity.upper()} (CVSS Eqv: {cvss})** |",
+                f"| **Category** | {category} |",
+                f"| **Impact** | {impact} |",
+                "",
+                "**Technical Analysis (Root Cause)**",
+                "",
+                root_cause,
+                "",
+                "**Exploit Vector / Injection Payload**",
+                "",
+                f"> `{poc}`",
+                "",
+                "**Target Response (Evidence)**",
+                "",
+                f"> `{evidence}`",
+                "",
+                "**Recommended Remediation**",
+                "",
+            ])
+            
+            if not remediation:
+                md.append("1. Monitor system logs for repeated payload iterations of this style.")
+            else:
+                for r_idx, remediation_item in enumerate(remediation, start=1):
+                    md.append(f"{r_idx}. {remediation_item}")
+            
+            md.extend([
+                "",
+                "---",
+                "",
+            ])
+
+    md.extend([
+        "## **4. Attack Timeline**",
         "",
         "| # | Category | Strategy | Verdict | Score | Key Observation |",
         "|---|---|---|---|---|---|",
-    ]
+    ])
 
     # Append timeline rows
     for item in timeline:
@@ -211,92 +313,41 @@ def compile_report(data: Dict[str, Any], target_url: str, session_id: str) -> st
         score = item.get("score", 0.0)
         obs = item.get("observation") or "No observation logged."
         
-        # Add emoji prefix to verdict
-        verdict_upper = verdict.upper()
-        if "SUCCESS" in verdict_upper:
-            v_str = f"✅ {verdict_upper}"
-        elif "PARTIAL" in verdict_upper:
-            v_str = f"⚠️ {verdict_upper}"
-        elif "INTERRUPTED" in verdict_upper:
-            v_str = f"⚠️ {verdict_upper}"
-        elif "CANCELLED" in verdict_upper:
-            v_str = f"⚠️ {verdict_upper}"
-        else:
-            v_str = f"❌ {verdict_upper}"
+        v_str = verdict.upper()
 
         row = f"| {it_num} | {escape_markdown(cat)} | {escape_markdown(strat)} | {v_str} | {score} | {escape_markdown(obs)} |"
         md.append(row)
 
-    md.extend([
-        "",
-        "---",
-        "",
-        "## 4. Confirmed Vulnerabilities",
-        ""
-    ])
-
-    # Append findings
-    if not findings:
-        md.append("No active vulnerabilities or successful exploits were confirmed during this audit campaign.")
-        md.append("The target system demonstrates high resilience against direct jailbreak vectors and prompt exfiltration.")
-        md.append("Continue monitoring and logging all model inputs and output queries to prevent drift.")
+    md.append("")
+    
+    # Embed Attack Timeline Charts (Gantt & Funnel)
+    if chart_urls.get("timeline") and chart_urls.get("funnel"):
+        caption1 = chart_captions.get('timeline', 'Attack Timeline progression mapping agent activity over iterations.')
+        caption2 = chart_captions.get('funnel', 'Payload Mutation Funnel illustrating the narrowing rate of payload success.')
+        md.extend([
+            "| Attack Timeline progression | Payload Mutation Funnel |",
+            "| :---: | :---: |",
+            f"| ![Attack Timeline progression]({chart_urls['timeline']}) | ![Payload Mutation Funnel]({chart_urls['funnel']}) |",
+            f"| *Figure 3: {caption1}* | *Figure 4: {caption2}* |",
+            ""
+        ])
     else:
-        for idx, f in enumerate(findings, 1):
-            title = f.get("title") or "Unnamed Vulnerability"
-            severity = f.get("severity") or "Medium"
-            category = f.get("category") or "General"
-            cvss = f.get("cvss_equivalent") or "5.0"
-            impact = f.get("impact") or "N/A"
-            poc = f.get("proof_of_concept")
-            evidence = f.get("evidence")
-            root_cause = f.get("root_cause") or "Design flaw in model alignment or prompt logic."
-            remediation = f.get("remediation") or []
-
-            # Severity color/emoji mapping
-            sev_upper = severity.upper()
-            if "CRITICAL" in sev_upper:
-                sev_str = "🔴 Critical"
-            elif "HIGH" in sev_upper:
-                sev_str = "🟠 High"
-            elif "MEDIUM" in sev_upper:
-                sev_str = "🟡 Medium"
-            else:
-                sev_str = "🟢 Low"
-
-            md.extend([
-                f"### 🚨 FINDING-{idx} — {title}",
-                "",
-                "| Field | Detail |",
-                "|---|---|",
-                f"| **Severity** | {sev_str} |",
-                f"| **Category** | {category} |",
-                f"| **CVSS-Equivalent** | {cvss} |",
-                f"| **Impact** | {impact} |",
-                "",
-                "**Proof of Concept Payload:**",
-                format_blockquote(poc),
-                "",
-                "**Target Response (Evidence):**",
-                format_blockquote(evidence),
-                "",
-                "#### Root Cause",
-                root_cause,
-                "",
-                "#### Remediation"
-            ])
-
-            if not remediation:
-                md.append("1. Monitor system logs for repeated payload iterations of this style.")
-            else:
-                for rem_idx, item in enumerate(remediation, 1):
-                    md.append(f"{rem_idx}. {item}")
+        if chart_urls.get("timeline"):
+            md.append(f"![Attack Timeline progression]({chart_urls['timeline']})")
+            caption = chart_captions.get('timeline', 'Attack Timeline progression mapping agent activity over iterations.')
+            md.append(f"*Figure 3: {caption}*")
+            md.append("")
             
+        if chart_urls.get("funnel"):
+            md.append(f"![Payload Mutation Funnel]({chart_urls['funnel']})")
+            caption = chart_captions.get('funnel', 'Payload Mutation Funnel illustrating the narrowing rate of payload success.')
+            md.append(f"*Figure 4: {caption}*")
             md.append("")
 
     md.extend([
         "---",
         "",
-        "## 5. Strategic Hardening Roadmap",
+        "## **5. Strategic Hardening Roadmap**",
         ""
     ])
 
@@ -305,28 +356,31 @@ def compile_report(data: Dict[str, Any], target_url: str, session_id: str) -> st
     short_term = roadmap.get("short_term") or []
     long_term = roadmap.get("long_term") or []
 
-    md.append("### Immediate (0–7 days)")
+    md.append("**Immediate (0–7 days)**")
+    md.append("")
     if immediate:
         for item in immediate:
-            md.append(f"- {item}")
+            md.append(f"* {item}")
     else:
-        md.append("- No immediate hardening steps recommended.")
+        md.append("* No immediate hardening steps recommended.")
     md.append("")
 
-    md.append("### Short-term (1–4 weeks)")
+    md.append("**Short-term (1–4 weeks)**")
+    md.append("")
     if short_term:
         for item in short_term:
-            md.append(f"- {item}")
+            md.append(f"* {item}")
     else:
-        md.append("- Implement dynamic evaluation loops for suspected inputs.")
+        md.append("* Implement dynamic evaluation loops for suspected inputs.")
     md.append("")
 
-    md.append("### Long-term (1–3 months)")
+    md.append("**Long-term (1–3 months)**")
+    md.append("")
     if long_term:
         for item in long_term:
-            md.append(f"- {item}")
+            md.append(f"* {item}")
     else:
-        md.append("- Regularly update foundation models and retrain local classifiers.")
+        md.append("* Regularly update foundation models and retrain local classifiers.")
     md.append("")
 
     md.extend([

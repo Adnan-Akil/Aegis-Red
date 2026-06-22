@@ -22,7 +22,7 @@ async def generate_cybersec_report(trace_markdown: str, target_url: str, session
         logger.error("No API keys available for report generation.")
         return "ERROR: Report generation failed due to missing API keys."
 
-    # Always use the most capable available model for report generation
+    # Default to the most capable model for primary report generation
     model = "llama-3.3-70b-versatile" if os.getenv("REPORT_LLM_API_KEY") else DEFAULT_MODEL
     client = AsyncGroq(api_key=api_key)
 
@@ -97,6 +97,12 @@ Structure your response to match this exact JSON schema:
     "immediate": ["Immediate action item"],
     "short_term": ["Short-term action item"],
     "long_term": ["Long-term action item"]
+  }},
+  "chart_captions": {{
+    "donut": "1-sentence analytical caption for the Vulnerability Severity chart",
+    "radar": "1-sentence analytical caption for the Threat Class Exposure radar chart",
+    "timeline": "1-sentence analytical caption for the Attack Timeline Gantt chart",
+    "funnel": "1-sentence analytical caption for the Payload Mutation Funnel"
   }}
 }}
 
@@ -116,6 +122,43 @@ Respond ONLY with the JSON object. Do not include markdown code fence wrappers (
         )
         raw_content = response.choices[0].message.content.strip()
         data = json.loads(raw_content)
+        
+        # --- Chart Generation & Upload ---
+        try:
+            from src.evaluation.chart_generator import (
+                generate_severity_donut, generate_radar_chart, 
+                generate_timeline_gantt, generate_funnel_chart, generate_surface_map
+            )
+            from src.memory.supabase_manager import SupabaseManager
+            
+            logger.info("Generating and uploading charts...")
+            db = SupabaseManager()
+            db.session_id = session_id
+            # Note: We need user_id for path. We can try to extract it from DB or fallback
+            db.user_id = "report_charts" # Fallback if we don't have it here
+            
+            findings = data.get("findings", [])
+            timeline = data.get("attack_timeline", [])
+            
+            donut_bytes = generate_severity_donut(findings)
+            radar_bytes = generate_radar_chart(findings)
+            timeline_bytes = generate_timeline_gantt(timeline)
+            funnel_bytes = generate_funnel_chart(timeline)
+            surface_map_bytes = generate_surface_map(findings)
+            
+            data["chart_urls"] = {
+                "donut": db.upload_chart("donut", donut_bytes),
+                "timeline": db.upload_chart("timeline", timeline_bytes),
+                "funnel": db.upload_chart("funnel", funnel_bytes),
+                "surface_map": db.upload_chart("surface_map", surface_map_bytes)
+            }
+            if radar_bytes:
+                data["chart_urls"]["radar"] = db.upload_chart("radar", radar_bytes)
+        except Exception as chart_e:
+            logger.error(f"Chart generation/upload failed: {chart_e}")
+            data["chart_urls"] = {}
+        # ---------------------------------
+        
         report_md = compile_report(data, target_url, session_id)
         logger.info("Structured report compiled successfully.")
         return report_md
@@ -247,7 +290,7 @@ Generate the report using EXACTLY this structure:
 
         try:
             response = await client.chat.completions.create(
-                model=model,
+                model="llama-3.1-8b-instant",  # Force 8B fallback to avoid repeating rate limits
                 messages=[
                     {"role": "system", "content": system_message_fallback},
                     {"role": "user", "content": prompt_fallback},
