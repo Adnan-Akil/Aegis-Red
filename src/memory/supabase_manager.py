@@ -128,3 +128,22 @@ class SupabaseManager:
             logger.info(f"Supabase: Session {self.session_id} completed with verdict {verdict}")
         except Exception as e:
             logger.warning(f"Supabase complete_session failed: {e}")
+
+    def upload_chart(self, chart_name: str, image_bytes: bytes) -> str:
+        """Uploads a generated chart image to Supabase and returns the public URL."""
+        if not self.session_id or not self.user_id:
+            logger.warning("Cannot upload chart without an active session.")
+            return ""
+            
+        file_path = f"{self.user_id}/{self.session_id}_{chart_name}.png"
+        try:
+            self.supabase.storage.from_("attack-charts").upload(
+                path=file_path,
+                file=image_bytes,
+                file_options={"content-type": "image/png"}
+            )
+        except Exception as e:
+            logger.error(f"Failed to upload chart {chart_name} to Supabase: {e}")
+            
+        # Always return the URL (even if it already existed and threw an error above)
+        return self.supabase.storage.from_("attack-charts").get_public_url(file_path)

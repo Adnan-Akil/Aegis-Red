@@ -196,7 +196,7 @@ export default function ReportsPage() {
       <div className="shrink-0 flex gap-4 h-20 relative z-10">
         {/* Total Audits */}
         <div className="flex-1 rounded-xl flex flex-col justify-center px-6 relative overflow-hidden group"
-             style={{ background: "rgba(16,16,18,0.2)", backdropFilter: "blur(12px)", border: "1px solid rgba(255,255,255,0.04)" }}>
+             style={{ background: "rgba(16,16,18,0.2)", backdropFilter: "blur(12px)", border: "1px solid rgba(255,255,255,0.20)" }}>
           <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
           <span className="text-[10px] uppercase tracking-widest text-zinc-500 font-semibold mb-0.5">Total Audits</span>
           <span className="text-2xl font-bold text-white tabular-nums tracking-tight">{totalAudits}</span>
@@ -204,7 +204,7 @@ export default function ReportsPage() {
 
         {/* Compromise Rate */}
         <div className="flex-1 rounded-xl flex flex-col justify-center px-6 relative overflow-hidden group"
-             style={{ background: "rgba(16,16,18,0.2)", backdropFilter: "blur(12px)", border: "1px solid rgba(255,255,255,0.04)" }}>
+             style={{ background: "rgba(16,16,18,0.2)", backdropFilter: "blur(12px)", border: "1px solid rgba(255,255,255,0.20)" }}>
           <div className="absolute -inset-10 bg-gradient-to-r from-red-600/20 via-purple-600/20 to-transparent blur-2xl opacity-30" />
           <div className="relative z-10 flex items-end justify-between">
             <div className="flex flex-col">
@@ -226,7 +226,7 @@ export default function ReportsPage() {
 
         {/* Top Target */}
         <div className="flex-[1.5] rounded-xl flex flex-col justify-center px-6 relative overflow-hidden group"
-             style={{ background: "rgba(16,16,18,0.2)", backdropFilter: "blur(12px)", border: "1px solid rgba(255,255,255,0.04)" }}>
+             style={{ background: "rgba(16,16,18,0.2)", backdropFilter: "blur(12px)", border: "1px solid rgba(255,255,255,0.20)" }}>
           <span className="text-[10px] uppercase tracking-widest text-zinc-500 font-semibold mb-0.5">Most Audited Target</span>
           <span className="text-lg font-bold text-zinc-200 truncate pr-4">{topTarget}</span>
         </div>
@@ -234,7 +234,7 @@ export default function ReportsPage() {
         {/* Last Breach */}
         <div 
           className="flex-1 rounded-xl flex flex-col justify-center px-6 relative overflow-hidden group"
-          style={{ background: "rgba(16,16,18,0.2)", backdropFilter: "blur(12px)", border: "1px solid rgba(255,255,255,0.04)" }}
+          style={{ background: "rgba(16,16,18,0.2)", backdropFilter: "blur(12px)", border: "1px solid rgba(255,255,255,0.20)" }}
           title={lastBreachReport ? new Date(lastBreachReport.created_at).toLocaleString() : undefined}
         >
           <span className="text-[10px] uppercase tracking-widest text-zinc-500 font-semibold mb-0.5">Last Breach</span>
@@ -247,7 +247,7 @@ export default function ReportsPage() {
         
         {/* LEFT COLUMN: 30% List */}
         <div className="w-[30%] shrink-0 flex flex-col gap-4 rounded-xl relative overflow-hidden"
-             style={{ background: "rgba(14,14,16,0.40)", backdropFilter: "blur(12px)", border: "1px solid rgba(255,255,255,0.04)" }}>
+             style={{ background: "rgba(14,14,16,0.40)", backdropFilter: "blur(12px)", border: "1px solid rgba(255,255,255,0.20)" }}>
           
           {/* Search Bar */}
           <div className="shrink-0 p-4 pb-0">
@@ -344,7 +344,7 @@ export default function ReportsPage() {
 
         {/* RIGHT COLUMN: 70% Viewer */}
         <div className="flex-1 flex flex-col rounded-xl overflow-hidden relative"
-             style={{ background: "rgba(10,10,12,0.6)", backdropFilter: "blur(12px)", border: "1px solid rgba(255,255,255,0.04)" }}>
+             style={{ background: "rgba(10,10,12,0.6)", backdropFilter: "blur(12px)", border: "1px solid rgba(255,255,255,0.20)" }}>
           
           {selectedReport ? (
             <>

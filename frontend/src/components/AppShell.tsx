@@ -153,7 +153,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           className="flex items-center gap-12 px-12 py-3 rounded-full pointer-events-auto shadow-2xl"
           style={{
             ...glassPanel,
-            border: "1px solid rgba(255,255,255,0.07)",
+            border: "1px solid rgba(255,255,255,0.20)",
           }}
         >
           {/* Logo / Title */}

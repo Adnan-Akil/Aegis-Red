@@ -181,7 +181,7 @@ export default function LogsPage() {
         
         {/* LEFT COLUMN: 30% List */}
         <div className="w-[30%] shrink-0 flex flex-col gap-4 rounded-xl relative overflow-hidden"
-             style={{ background: "rgba(14,14,16,0.40)", backdropFilter: "blur(12px)", border: "1px solid rgba(255,255,255,0.04)" }}>
+             style={{ background: "rgba(14,14,16,0.40)", backdropFilter: "blur(12px)", border: "1px solid rgba(255,255,255,0.20)" }}>
           
           {/* Search Bar */}
           <div className="shrink-0 p-4 pb-0">
@@ -278,7 +278,7 @@ export default function LogsPage() {
 
         {/* RIGHT COLUMN: 70% Viewer */}
         <div className="flex-1 flex flex-col rounded-xl overflow-hidden relative"
-             style={{ background: "rgba(10,10,12,0.6)", backdropFilter: "blur(12px)", border: "1px solid rgba(255,255,255,0.04)" }}>
+             style={{ background: "rgba(10,10,12,0.6)", backdropFilter: "blur(12px)", border: "1px solid rgba(255,255,255,0.20)" }}>
           
           {selectedLog ? (
             <>
