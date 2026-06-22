@@ -56,19 +56,30 @@ export default function ReportsPage() {
         body: JSON.stringify({ markdown: markdownContent })
       });
 
-      if (!response.ok) throw new Error("PDF generation failed");
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData.error || "PDF generation failed");
+      }
 
       const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = defaultName.replace(/\.md$/, ".pdf");
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-    } catch (err) {
+      const file = new Blob([blob], { type: 'application/pdf' });
+      const fileURL = URL.createObjectURL(file);
+      
+      // Open in a new tab so the user sees the PDF preview and can choose where to save/print it
+      const newWindow = window.open(fileURL, '_blank');
+      if (!newWindow) {
+        // If popup blocker blocked the new tab, fallback to direct download trigger
+        const a = document.createElement("a");
+        a.href = fileURL;
+        a.download = defaultName.replace(/\.md$/, ".pdf");
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      }
+    } catch (err: any) {
       console.error("PDF generation failed, falling back to Markdown download:", err);
+      alert(`Note: PDF Generation failed or is compiling. Falling back to Markdown download. (Error: ${err.message})`);
+      
       // Fallback: Download raw markdown file directly so the button is always responsive
       const blob = new Blob([markdownContent], { type: "text/markdown;charset=utf-8" });
       const url = window.URL.createObjectURL(blob);
