@@ -63,6 +63,7 @@ extract_report.py
 
 # Progress / notes (local scratchpad)
 progress.md
+mistake.md
 
 # Internal docs (local only — not for repo)
 docs/SOP.md
