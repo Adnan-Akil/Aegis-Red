@@ -10,7 +10,7 @@ from typing import Optional
 logger = logging.getLogger(__name__)
 
 # Styling
-plt.style.use('dark_background')
+# Remove dark_background so it defaults to light
 COLORS = {
     'Critical': '#ff4d4d',
     'High': '#ff9933',
@@ -53,7 +53,7 @@ def generate_severity_donut(findings: list) -> bytes:
         fig.gca().add_artist(centre_circle)
         ax.axis('equal')  
     
-    plt.title('Vulnerability Severity Distribution', color='white')
+    plt.title('Vulnerability Severity Distribution', color='#18181b')
     return _save_to_bytes(fig)
 
 def generate_radar_chart(findings: list) -> Optional[bytes]:
@@ -85,14 +85,14 @@ def generate_radar_chart(findings: list) -> Optional[bytes]:
     angles += angles[:1]
     
     fig, ax = plt.subplots(figsize=(6, 6), subplot_kw=dict(polar=True))
-    plt.xticks(angles[:-1], categories, color='grey', size=10)
+    plt.xticks(angles[:-1], categories, color='#3f3f46', size=10)
     ax.set_rlabel_position(0)
-    plt.yticks([max_score*0.25, max_score*0.5, max_score*0.75, max_score], [], color="grey", size=7)
+    plt.yticks([max_score*0.25, max_score*0.5, max_score*0.75, max_score], [], color="#3f3f46", size=7)
     plt.ylim(0, max_score)
     
     ax.plot(angles, values, linewidth=2, linestyle='solid', color='#ff4d4d', marker='o', markersize=6)
     ax.fill(angles, values, '#ff4d4d', alpha=0.25)
-    plt.title('Threat Class Exposure Profile', y=1.1, color='white')
+    plt.title('Threat Class Exposure Profile', y=1.1, color='#18181b')
     return _save_to_bytes(fig)
 
 def generate_timeline_gantt(timeline_data: list) -> bytes:
@@ -112,16 +112,16 @@ def generate_timeline_gantt(timeline_data: list) -> bytes:
         elif verdict == 'FAIL':
             color = COLORS['Low']
             
-        ax.barh(i, 1, left=it-1, height=0.5, color=color, edgecolor='white')
+        ax.barh(i, 1, left=it-1, height=0.5, color=color, edgecolor='#fafafa')
         y_labels.append(f"Iter {it}: {cat[:15]}")
         y_ticks.append(i)
         
     ax.set_yticks(y_ticks)
-    ax.set_yticklabels(y_labels, fontsize=8)
-    ax.set_xlabel('Iteration')
-    ax.set_title('Attack Timeline progression', color='white')
+    ax.set_yticklabels(y_labels, fontsize=8, color='#18181b')
+    ax.set_xlabel('Iteration', color='#18181b')
+    ax.set_title('Attack Timeline progression', color='#18181b')
     ax.invert_yaxis()
-    ax.grid(True, axis='x', linestyle='--', alpha=0.3)
+    ax.grid(True, axis='x', linestyle='--', alpha=0.3, color='#a1a1aa')
     return _save_to_bytes(fig)
 
 def generate_funnel_chart(timeline_data: list) -> bytes:
@@ -141,16 +141,16 @@ def generate_funnel_chart(timeline_data: list) -> bytes:
     for i, (val, stage) in enumerate(zip(values, stages)):
         left = (max_val - val) / 2
         ax.barh(i, val, left=left, height=0.6, color='#ff9933', alpha=0.8 - (i*0.15))
-        ax.text(max_val/2, i, f"{val}", ha='center', va='center', color='white', fontweight='bold', fontsize=12)
+        ax.text(max_val/2, i, f"{val}", ha='center', va='center', color='#18181b', fontweight='bold', fontsize=12)
         
     ax.set_yticks(y_pos)
     ax.set_yticklabels(stages)
     ax.invert_yaxis()
-    ax.set_title('Payload Mutation Funnel', color='white')
+    ax.set_title('Payload Mutation Funnel', color='#18181b')
     ax.axis('off')
     
     for i, stage in enumerate(stages):
-        ax.text(-max_val*0.1, i, stage, ha='right', va='center', color='white', fontsize=10)
+        ax.text(-max_val*0.1, i, stage, ha='right', va='center', color='#18181b', fontsize=10)
         
     return _save_to_bytes(fig)
 
@@ -182,16 +182,16 @@ def generate_surface_map(findings: list) -> bytes:
     fig, ax = plt.subplots(figsize=(8, 4))
     
     # Draw nodes
-    nx.draw_networkx_nodes(G, pos, node_size=3000, node_color='#1e1e1e', edgecolors='white', ax=ax)
+    nx.draw_networkx_nodes(G, pos, node_size=3000, node_color='#e4e4e7', edgecolors='#a1a1aa', ax=ax)
     
     # Draw edges
     nx.draw_networkx_edges(G, pos, width=2, edge_color=colors, arrowsize=20, arrowstyle='-|>', ax=ax)
     
     # Draw labels
-    nx.draw_networkx_labels(G, pos, font_size=10, font_color='white', font_weight='bold', ax=ax)
+    nx.draw_networkx_labels(G, pos, font_size=10, font_color='#18181b', font_weight='bold', ax=ax)
     
     status_text = "SECURE (0 Vulnerabilities)" if is_secure else "COMPROMISED"
-    plt.title(f'Attack Surface Map - {status_text}', color='white', y=1.05)
+    plt.title(f'Attack Surface Map - {status_text}', color='#18181b', y=1.05)
     
     # Increase margins so nodes don't bleed off the edge
     ax.margins(0.30)

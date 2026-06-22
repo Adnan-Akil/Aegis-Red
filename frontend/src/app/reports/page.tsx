@@ -42,25 +42,43 @@ export default function ReportsPage() {
     : markdownContentRaw || "";
 
   const handleDownload = async (path: string, defaultName: string) => {
-    if (!path) return;
+    if (!markdownContent) return;
     try {
-      const { data } = await supabase.storage.from("attack-artifacts").createSignedUrl(path, 60);
-      if (data?.signedUrl) {
-        const response = await fetch(data.signedUrl);
-        const blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        // Sanitise filename: take only the basename, strip any path traversal characters
-        const rawName = path.split("/").pop() || defaultName;
-        a.download = rawName.replace(/[^a-zA-Z0-9._\-]/g, "_");
-        document.body.appendChild(a);
-        a.click();
-        window.URL.revokeObjectURL(url);
-        document.body.removeChild(a);
-      }
+      const session = await supabase.auth.getSession();
+      const token = session.data.session?.access_token;
+
+      const response = await fetch("/api/generate-pdf", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({ markdown: markdownContent })
+      });
+
+      if (!response.ok) throw new Error("PDF generation failed");
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = defaultName.replace(/\.md$/, ".pdf");
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
     } catch (err) {
-      console.error("Download failed", err);
+      console.error("PDF generation failed, falling back to Markdown download:", err);
+      // Fallback: Download raw markdown file directly so the button is always responsive
+      const blob = new Blob([markdownContent], { type: "text/markdown;charset=utf-8" });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = defaultName;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
     }
   };
 

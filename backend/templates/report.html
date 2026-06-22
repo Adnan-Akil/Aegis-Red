@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Aegis-Red Report</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+
+        @page {
+            size: A4;
+            margin: 1in 1.25in 1in 1.25in;
+            @bottom-right {
+                content: counter(page);
+                font-family: 'Inter', sans-serif;
+                font-size: 10pt;
+                color: #a1a1aa;
+            }
+            @bottom-left {
+                content: "Aegis-Red Automated Security Report";
+                font-family: 'Inter', sans-serif;
+                font-size: 10pt;
+                color: #a1a1aa;
+            }
+        }
+
+        body {
+            font-family: 'Times New Roman', Times, serif;
+            color: #18181b; /* zinc-900 */
+            line-height: 1.6;
+            font-size: 11pt;
+            margin: 0;
+            padding: 0;
+            background-color: #fafafa;
+        }
+
+        @media screen {
+            body {
+                background-color: #27272a; /* Dark background outside the paper */
+                padding: 2rem;
+                display: flex;
+                justify-content: center;
+            }
+            .content {
+                background-color: #fafafa;
+                background-image: 
+                    linear-gradient(#f1f1f1 1px, transparent 1px),
+                    linear-gradient(90deg, #f1f1f1 1px, transparent 1px);
+                background-size: 20px 20px;
+                width: 210mm; /* A4 width */
+                min-height: 297mm; /* A4 height */
+                padding: 1in 1.25in; /* 1in top/bottom, 1.25in left/right */
+                box-sizing: border-box;
+                box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            }
+        }
+
+        @media print {
+            html {
+                background-color: #fafafa !important;
+                background-image: 
+                    linear-gradient(#f1f1f1 1px, transparent 1px),
+                    linear-gradient(90deg, #f1f1f1 1px, transparent 1px) !important;
+                background-size: 20px 20px !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+                margin: 0 !important;
+                padding: 0 !important;
+            }
+            body {
+                background-color: transparent !important;
+                background-image: none !important;
+                margin: 0 !important;
+                padding: 0 !important;
+            }
+            .content {
+                background-color: transparent !important;
+                background-image: none !important;
+                margin: 0 !important;
+                padding: 0 !important;
+            }
+        }
+
+        h1, h2, h3, h4, h5, h6 {
+            font-family: 'Inter', sans-serif;
+            color: #18181b;
+            margin-top: 24pt;
+            margin-bottom: 12pt;
+            font-weight: 600;
+        }
+
+        h1 { font-size: 24pt; border-bottom: 2px solid #e4e4e7; padding-bottom: 8pt; }
+        h2 { font-size: 18pt; }
+        h3 { font-size: 14pt; }
+
+        p { margin-bottom: 12pt; }
+
+        a { color: #06b6d4; text-decoration: none; }
+        a:hover { text-decoration: underline; }
+
+        /* Code and Preformatted text */
+        code {
+            font-family: 'Courier New', Courier, monospace;
+            background-color: #f4f4f5;
+            color: #ef4444; /* Matte Red for inline code */
+            padding: 2px 4px;
+            border-radius: 4px;
+            font-size: 10pt;
+        }
+
+        pre {
+            background-color: #18181b; /* Dark block for payloads */
+            color: #e4e4e7;
+            padding: 12pt;
+            border-radius: 6px;
+            overflow-x: auto;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 9.5pt;
+            border-left: 4px solid #f59e0b; /* Amber accent */
+            page-break-inside: avoid;
+        }
+
+        pre code {
+            background-color: transparent;
+            color: inherit;
+            padding: 0;
+        }
+
+        /* Tables */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 16pt;
+            font-family: 'Inter', sans-serif;
+            font-size: 10pt;
+            page-break-inside: avoid;
+        }
+
+        th, td {
+            border: 1px solid #d4d4d8;
+            padding: 8pt;
+            text-align: left;
+        }
+
+        th {
+            background-color: #f4f4f5;
+            color: #27272a;
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 9pt;
+        }
+
+        tr:nth-child(even) { background-color: #fcfcfc; }
+
+        /* Blockquotes / Callouts */
+        blockquote {
+            margin: 16pt 0;
+            padding: 12pt 16pt;
+            background-color: #fef2f2; /* Light red bg */
+            border-left: 4px solid #ef4444; /* Matte red */
+            border-radius: 0 6px 6px 0;
+            color: #7f1d1d;
+            font-family: 'Inter', sans-serif;
+            font-size: 10.5pt;
+            page-break-inside: avoid;
+        }
+
+        /* Lists */
+        ul, ol { margin-bottom: 12pt; padding-left: 24pt; }
+        li { margin-bottom: 4pt; }
+
+        /* Images and Captions */
+        img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 6px;
+            border: 1px solid #e4e4e7;
+            margin: 12pt auto;
+            display: block;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Target the styled captions from the markdown compiler */
+        em.figure-caption {
+            display: block;
+            font-size: 8.5pt;
+            color: #52525b; /* zinc-600 */
+            text-align: center;
+            font-style: italic;
+            font-family: 'Inter', sans-serif;
+            line-height: 1.4;
+            margin-top: -6pt; /* Pull closer to image */
+            margin-bottom: 12pt;
+        }
+
+        /* Finding Alerts (Optional class based formatting if we post-process HTML) */
+        .finding-critical {
+            background-color: #fef2f2;
+            border: 1px solid #fca5a5;
+            border-left: 6px solid #ef4444;
+            padding: 12px;
+            border-radius: 6px;
+            margin: 16px 0;
+        }
+        .finding-warning {
+            background-color: #fffbeb;
+            border: 1px solid #fcd34d;
+            border-left: 6px solid #f59e0b;
+            padding: 12px;
+            border-radius: 6px;
+            margin: 16px 0;
+        }
+
+    </style>
+</head>
+<body>
+    <div class="content">
+        {{ content | safe }}
+    </div>
+</body>
+</html>

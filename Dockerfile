@@ -9,10 +9,15 @@ ENV PYTHONUNBUFFERED=1
 # Hugging Face Spaces exposes port 7860 by default
 ENV PORT=7860 
 
-# Install system dependencies (required for Playwright)
+# Install system dependencies (required for Playwright & WeasyPrint)
 RUN apt-get update && apt-get install -y \
     wget \
     gnupg \
+    libcairo2 \
+    libpango-1.0-0 \
+    libpangoft2-1.0-0 \
+    libffi-dev \
+    shared-mime-info \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy the requirements file into the container

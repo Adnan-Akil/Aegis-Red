@@ -20,7 +20,7 @@ if sys.platform == "win32":
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, Response
 from pydantic import BaseModel, HttpUrl
 
 # ── Ensure project root is on sys.path so src/ is importable ─────────────────
@@ -64,6 +64,9 @@ class RunRequest(BaseModel):
     mutations: int = 2
     headless: bool = True
     user_id: str = "00000000-0000-0000-0000-000000000000"
+
+class PDFRequest(BaseModel):
+    markdown: str
 
 
 # ── Attack runner (streaming generator) ───────────────────────────────────────
@@ -331,4 +334,50 @@ async def run_attack(body: RunRequest, request: Request) -> StreamingResponse:
             "Connection": "keep-alive",
             "X-Accel-Buffering": "no",  # Disables Nginx buffering for real-time streaming
         },
+    )
+
+@app.post("/api/generate-pdf")
+def generate_pdf(req: PDFRequest):
+    import markdown
+    from jinja2 import Environment, FileSystemLoader
+
+    html_content = markdown.markdown(
+        req.markdown,
+        extensions=['extra', 'fenced_code', 'tables']
+    )
+    
+    import re
+    html_content = re.sub(
+        r'<em>(Figure\b[^<]*)</em>',
+        r'<em class="figure-caption">\1</em>',
+        html_content
+    )
+    
+    # ROOT is defined as the project root.
+    template_dir = ROOT / "backend" / "templates"
+    env = Environment(loader=FileSystemLoader(str(template_dir)))
+    template = env.get_template("report.html")
+    rendered_html = template.render(content=html_content)
+
+    try:
+        from weasyprint import HTML
+        pdf_bytes = HTML(string=rendered_html).write_pdf()
+    except Exception as e:
+        import sys
+        error_msg = str(e)
+        detail = (
+            f"PDF Generation failed: {error_msg}. "
+            "If running locally on Windows, this is usually because WeasyPrint requires the GTK3 runtime "
+            "libraries (Cairo, Pango) to be installed. "
+            "The hosted Hugging Face Docker deployment includes these libraries and will work out of the box."
+        )
+        from fastapi import HTTPException
+        raise HTTPException(status_code=500, detail=detail)
+    
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": "attachment; filename=report.pdf"
+        }
     )
