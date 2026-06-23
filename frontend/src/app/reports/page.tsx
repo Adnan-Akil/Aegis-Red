@@ -5,6 +5,7 @@ import { Download, Loader2, ShieldCheck, Zap, Fingerprint, Activity, Terminal, T
 import { supabase } from "@/lib/supabase";
 import { useAttackSessions } from "@/lib/hooks/useAttackSessions";
 import { useMarkdownReport } from "@/lib/hooks/useMarkdownReport";
+import { useReportUrl } from "@/lib/hooks/useReportUrl";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { motion } from "framer-motion";
@@ -36,6 +37,7 @@ export default function ReportsPage() {
   const [clearError, setClearError] = useState<string | null>(null);
 
   const { content: markdownContentRaw, isLoading: markdownLoading } = useMarkdownReport(selectedReport?.report_file_url || null);
+  const { url: htmlReportUrl, isLoading: htmlLoading } = useReportUrl(selectedReport?.html_report_url || null);
 
   const markdownContent = !selectedReport?.report_file_url 
     ? "### No Formal Report Generated\nThis session either failed or was aborted before a formal report could be compiled."
@@ -399,87 +401,95 @@ export default function ReportsPage() {
                 </div>
               </div>
 
-              {/* Markdown Content */}
-              <div className="flex-1 overflow-y-auto p-8 no-scrollbar relative"
-                   style={{ backgroundImage: "linear-gradient(to right, rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.03) 1px, transparent 1px)", backgroundSize: "24px 24px" }}>
-                {markdownLoading ? (
-                  <div className="absolute inset-0 flex items-center justify-center">
+              {/* Report Content */}
+              <div className="flex-1 overflow-hidden relative bg-white">
+                {htmlLoading || markdownLoading ? (
+                  <div className="absolute inset-0 flex items-center justify-center bg-[#0a0a0c]">
                     <Loader2 className="w-6 h-6 animate-spin text-zinc-600" />
                   </div>
+                ) : htmlReportUrl ? (
+                  <iframe 
+                    src={htmlReportUrl} 
+                    className="w-full h-full border-none"
+                    title="Report"
+                  />
                 ) : (
-                  <div className="prose prose-invert prose-zinc max-w-none 
-                    prose-headings:font-['Elms_Sans'] prose-headings:font-semibold prose-headings:tracking-tight prose-headings:mt-8 prose-headings:mb-4
-                    prose-h1:text-3xl prose-h2:text-2xl prose-h3:text-xl
-                    prose-p:text-zinc-300 prose-p:leading-relaxed prose-p:text-[15px] prose-p:mb-6
-                    prose-a:text-cyan-400 prose-a:no-underline hover:prose-a:underline
-                    prose-strong:text-zinc-200 prose-code:text-rose-300 prose-code:bg-rose-500/10 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded-md prose-code:before:content-none prose-code:after:content-none
-                    prose-pre:bg-[#0a0a0c] prose-pre:border prose-pre:border-white/5 prose-pre:p-6 prose-pre:rounded-xl prose-pre:my-6
-                    prose-hr:border-white/5 prose-hr:my-8
-                    prose-table:w-full prose-table:border-collapse prose-table:border-hidden prose-table:my-8
-                    prose-th:bg-white/5 prose-th:p-4 prose-th:text-left prose-th:text-zinc-200 prose-th:border prose-th:border-white/10
-                    prose-td:p-4 prose-td:border prose-td:border-white/5 prose-td:text-zinc-400
-                    prose-tr:border-b prose-tr:border-white/5 hover:prose-tr:bg-white/[0.02] transition-colors
-                    prose-ul:my-6 prose-li:my-2 prose-li:text-zinc-300"
-                    style={{ fontFamily: "'Times New Roman', serif" }}>
-                    <ReactMarkdown
-                      remarkPlugins={[remarkGfm]}
-                      components={{
-                        // Block javascript: hrefs and force safe link attributes
-                        a: ({ href, children }) => {
-                          const safeHref = href && !href.toLowerCase().startsWith("javascript:") ? href : "#";
-                          return (
-                            <a href={safeHref} target="_blank" rel="noopener noreferrer">
-                              {children}
-                            </a>
-                          );
-                        },
-                        // Custom table components for premium styling and horizontal scroll wrapper
-                        table: ({ children }) => (
-                          <div className="w-full overflow-x-auto border border-white/10 rounded-xl my-6 bg-white/[0.02] backdrop-blur-sm">
-                            <table className="w-full border-collapse text-left text-sm text-zinc-400 font-sans">
-                              {children}
-                            </table>
-                          </div>
-                        ),
-                        th: ({ children }) => (
-                          <th className="bg-white/5 p-4 text-left text-[11px] font-semibold uppercase tracking-wider text-zinc-300 border-b border-white/10">
-                            {children}
-                          </th>
-                        ),
-                        td: ({ children }) => (
-                          <td className="p-4 text-zinc-400 border-b border-white/5 font-mono text-[13px]">
-                            {children}
-                          </td>
-                        ),
-                        tr: ({ children }) => (
-                          <tr className="hover:bg-white/[0.03] transition-colors border-b border-white/5 last:border-0">
-                            {children}
-                          </tr>
-                        ),
-                        // Monospace dark blockquote for terminal logs/payloads
-                        blockquote: ({ children }) => (
-                          <blockquote className="my-4 border border-white/5 border-l-2 border-l-red-500/50 bg-[#050505] p-4 rounded-r-lg rounded-l-sm font-mono text-[12.5px] text-zinc-400 leading-relaxed shadow-sm">
-                            {children}
-                          </blockquote>
-                        ),
-                        // Intercept FINDING headers to style them as alert blocks
-                        h3: ({ children }) => {
-                          const text = String(children || "");
-                          if (text.includes("FINDING-")) {
+                  <div className="absolute inset-0 overflow-y-auto p-8 no-scrollbar"
+                       style={{ backgroundImage: "linear-gradient(to right, rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.03) 1px, transparent 1px)", backgroundSize: "24px 24px", backgroundColor: "#0a0a0c" }}>
+                    <div className="prose prose-invert prose-zinc max-w-none 
+                      prose-headings:font-['Elms_Sans'] prose-headings:font-semibold prose-headings:tracking-tight prose-headings:mt-8 prose-headings:mb-4
+                      prose-h1:text-3xl prose-h2:text-2xl prose-h3:text-xl
+                      prose-p:text-zinc-300 prose-p:leading-relaxed prose-p:text-[15px] prose-p:mb-6
+                      prose-a:text-cyan-400 prose-a:no-underline hover:prose-a:underline
+                      prose-strong:text-zinc-200 prose-code:text-rose-300 prose-code:bg-rose-500/10 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded-md prose-code:before:content-none prose-code:after:content-none
+                      prose-pre:bg-[#0a0a0c] prose-pre:border prose-pre:border-white/5 prose-pre:p-6 prose-pre:rounded-xl prose-pre:my-6
+                      prose-hr:border-white/5 prose-hr:my-8
+                      prose-table:w-full prose-table:border-collapse prose-table:border-hidden prose-table:my-8
+                      prose-th:bg-white/5 prose-th:p-4 prose-th:text-left prose-th:text-zinc-200 prose-th:border prose-th:border-white/10
+                      prose-td:p-4 prose-td:border prose-td:border-white/5 prose-td:text-zinc-400
+                      prose-tr:border-b prose-tr:border-white/5 hover:prose-tr:bg-white/[0.02] transition-colors
+                      prose-ul:my-6 prose-li:my-2 prose-li:text-zinc-300"
+                      style={{ fontFamily: "'Times New Roman', serif" }}>
+                      <ReactMarkdown
+                        remarkPlugins={[remarkGfm]}
+                        components={{
+                          // Block javascript: hrefs and force safe link attributes
+                          a: ({ href, children }) => {
+                            const safeHref = href && !href.toLowerCase().startsWith("javascript:") ? href : "#";
                             return (
-                              <div className="mt-8 mb-4 border border-red-500/20 bg-red-500/10 backdrop-blur-md rounded-xl p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.1)] shadow-red-950/10">
-                                <h3 className="text-base font-semibold font-['Elms_Sans'] text-red-400 flex items-center gap-2 m-0">
-                                  {children}
-                                </h3>
-                              </div>
+                              <a href={safeHref} target="_blank" rel="noopener noreferrer">
+                                {children}
+                              </a>
                             );
+                          },
+                          // Custom table components for premium styling and horizontal scroll wrapper
+                          table: ({ children }) => (
+                            <div className="w-full overflow-x-auto border border-white/10 rounded-xl my-6 bg-white/[0.02] backdrop-blur-sm">
+                              <table className="w-full border-collapse text-left text-sm text-zinc-400 font-sans">
+                                {children}
+                              </table>
+                            </div>
+                          ),
+                          th: ({ children }) => (
+                            <th className="bg-white/5 p-4 text-left text-[11px] font-semibold uppercase tracking-wider text-zinc-300 border-b border-white/10">
+                              {children}
+                            </th>
+                          ),
+                          td: ({ children }) => (
+                            <td className="p-4 text-zinc-400 border-b border-white/5 font-mono text-[13px]">
+                              {children}
+                            </td>
+                          ),
+                          tr: ({ children }) => (
+                            <tr className="hover:bg-white/[0.03] transition-colors border-b border-white/5 last:border-0">
+                              {children}
+                            </tr>
+                          ),
+                          // Monospace dark blockquote for terminal logs/payloads
+                          blockquote: ({ children }) => (
+                            <blockquote className="my-4 border border-white/5 border-l-2 border-l-red-500/50 bg-[#050505] p-4 rounded-r-lg rounded-l-sm font-mono text-[12.5px] text-zinc-400 leading-relaxed shadow-sm">
+                              {children}
+                            </blockquote>
+                          ),
+                          // Intercept FINDING headers to style them as alert blocks
+                          h3: ({ children }) => {
+                            const text = String(children || "");
+                            if (text.includes("FINDING-")) {
+                              return (
+                                <div className="mt-8 mb-4 border border-red-500/20 bg-red-500/10 backdrop-blur-md rounded-xl p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.1)] shadow-red-950/10">
+                                  <h3 className="text-base font-semibold font-['Elms_Sans'] text-red-400 flex items-center gap-2 m-0">
+                                    {children}
+                                  </h3>
+                                </div>
+                              );
+                            }
+                            return <h3 className="text-lg font-semibold font-['Elms_Sans'] text-white tracking-tight mt-8 mb-4">{children}</h3>;
                           }
-                          return <h3 className="text-lg font-semibold font-['Elms_Sans'] text-white tracking-tight mt-8 mb-4">{children}</h3>;
-                        }
-                      }}
-                    >
-                      {markdownContent}
-                    </ReactMarkdown>
+                        }}
+                      >
+                        {markdownContent}
+                      </ReactMarkdown>
+                    </div>
                   </div>
                 )}
               </div>

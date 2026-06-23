@@ -96,6 +96,7 @@ class SupabaseManager:
                 logger.error(f"Failed to upload payload trace to Supabase: {e}")
 
         report_url = None
+        html_report_url = None
         if report_content and not report_content.startswith("ERROR:"):
             try:
                 # Format: user_id/session_id_report.md
@@ -106,6 +107,36 @@ class SupabaseManager:
                     file_options={"content-type": "text/markdown"}
                 )
                 report_url = report_path
+                
+                # Convert to HTML and upload
+                import markdown
+                from jinja2 import Environment, FileSystemLoader
+                import re
+                
+                html_content = markdown.markdown(
+                    report_content,
+                    extensions=['extra', 'fenced_code', 'tables']
+                )
+                
+                html_content = re.sub(
+                    r'<em>(Figure\b[^<]*)</em>',
+                    r'<em class="figure-caption">\1</em>',
+                    html_content
+                )
+                
+                template_dir = ROOT_DIR / "backend" / "templates"
+                env = Environment(loader=FileSystemLoader(str(template_dir)))
+                template = env.get_template("report.html")
+                rendered_html = template.render(content=html_content)
+                
+                html_report_path = f"{self.user_id}/{self.session_id}_report.html"
+                self.supabase.storage.from_("attack-artifacts").upload(
+                    path=html_report_path,
+                    file=rendered_html.encode('utf-8'),
+                    file_options={"content-type": "text/html"}
+                )
+                html_report_url = html_report_path
+
             except Exception as e:
                 logger.error(f"Failed to upload formal report to Supabase: {e}")
 
@@ -122,12 +153,29 @@ class SupabaseManager:
         if report_url:
             # Note: The 'report_file_url' column must exist in the attack_sessions table!
             update_data["report_file_url"] = report_url
+            
+        if html_report_url:
+            # Update the HTML report URL if the column exists
+            try:
+                # Just add to update_data, if it fails below, we can catch it
+                update_data["html_report_url"] = html_report_url
+            except Exception:
+                pass
 
         try:
             self.supabase.table("attack_sessions").update(update_data).eq("id", self.session_id).execute()
             logger.info(f"Supabase: Session {self.session_id} completed with verdict {verdict}")
         except Exception as e:
-            logger.warning(f"Supabase complete_session failed: {e}")
+            if "html_report_url" in str(e):
+                # Try again without html_report_url if the column doesn't exist
+                update_data.pop("html_report_url", None)
+                try:
+                    self.supabase.table("attack_sessions").update(update_data).eq("id", self.session_id).execute()
+                    logger.info(f"Supabase: Session {self.session_id} completed with verdict {verdict} (without html_report_url)")
+                except Exception as e2:
+                    logger.warning(f"Supabase complete_session failed: {e2}")
+            else:
+                logger.warning(f"Supabase complete_session failed: {e}")
 
     def upload_chart(self, chart_name: str, image_bytes: bytes) -> str:
         """Uploads a generated chart image to Supabase and returns the public URL."""

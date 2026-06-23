@@ -7,20 +7,8 @@
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
 
         @page {
-            size: A4;
-            margin: 1in 1.25in 1in 1.25in;
-            @bottom-right {
-                content: counter(page);
-                font-family: 'Inter', sans-serif;
-                font-size: 10pt;
-                color: #a1a1aa;
-            }
-            @bottom-left {
-                content: "Aegis-Red Automated Security Report";
-                font-family: 'Inter', sans-serif;
-                font-size: 10pt;
-                color: #a1a1aa;
-            }
+            size: 210mm auto; /* A4 width, height fits content — single continuous page */
+            margin: 0;
         }
 
         body {
@@ -30,15 +18,19 @@
             font-size: 11pt;
             margin: 0;
             padding: 0;
-            background-color: #fafafa;
         }
 
         @media screen {
-            body {
+            html, body {
                 background-color: #27272a; /* Dark background outside the paper */
-                padding: 2rem;
+                margin: 0;
+                padding: 0;
+                min-height: 100vh;
                 display: flex;
                 justify-content: center;
+                align-items: flex-start;
+                padding-top: 2rem;
+                padding-bottom: 2rem;
             }
             .content {
                 background-color: #fafafa;
@@ -48,7 +40,7 @@
                 background-size: 20px 20px;
                 width: 210mm; /* A4 width */
                 min-height: 297mm; /* A4 height */
-                padding: 1in 1.25in; /* 1in top/bottom, 1.25in left/right */
+                padding: 0.75in 1in;
                 box-sizing: border-box;
                 box-shadow: 0 10px 30px rgba(0,0,0,0.5);
             }
@@ -65,18 +57,49 @@
                 print-color-adjust: exact;
                 margin: 0 !important;
                 padding: 0 !important;
+                width: 100%;
+                height: 100%;
             }
             body {
                 background-color: transparent !important;
                 background-image: none !important;
                 margin: 0 !important;
-                padding: 0 !important;
+                padding: 0.4in 0.75in 0.6in 0.75in !important;
+                box-sizing: border-box !important;
             }
             .content {
                 background-color: transparent !important;
                 background-image: none !important;
                 margin: 0 !important;
                 padding: 0 !important;
+            }
+
+
+            /* ── Page break rules ── */
+
+            /* Never orphan a heading at the bottom of a page */
+            h1, h2, h3, h4, h5, h6 {
+                page-break-after: avoid;
+                break-after: avoid;
+            }
+
+            /* Keep these blocks intact — don't slice mid-element */
+            table, blockquote, pre, img, figure,
+            .finding-critical, .finding-warning {
+                page-break-inside: avoid;
+                break-inside: avoid;
+            }
+
+            /* Prevent lone last lines (widows) or first lines (orphans) */
+            p {
+                orphans: 3;
+                widows: 3;
+            }
+
+            /* Keep list items with at least 2 siblings */
+            li {
+                orphans: 2;
+                widows: 2;
             }
         }
 
@@ -192,7 +215,7 @@
             margin-bottom: 12pt;
         }
 
-        /* Finding Alerts (Optional class based formatting if we post-process HTML) */
+        /* Finding Alerts */
         .finding-critical {
             background-color: #fef2f2;
             border: 1px solid #fca5a5;

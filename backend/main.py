@@ -66,7 +66,8 @@ class RunRequest(BaseModel):
     user_id: str = "00000000-0000-0000-0000-000000000000"
 
 class PDFRequest(BaseModel):
-    markdown: str
+    markdown: str | None = None
+    html: str | None = None
 
 
 # ── Attack runner (streaming generator) ───────────────────────────────────────
@@ -341,23 +342,29 @@ def generate_pdf(req: PDFRequest):
     import markdown
     from jinja2 import Environment, FileSystemLoader
 
-    html_content = markdown.markdown(
-        req.markdown,
-        extensions=['extra', 'fenced_code', 'tables']
-    )
-    
-    import re
-    html_content = re.sub(
-        r'<em>(Figure\b[^<]*)</em>',
-        r'<em class="figure-caption">\1</em>',
-        html_content
-    )
-    
-    # ROOT is defined as the project root.
-    template_dir = ROOT / "backend" / "templates"
-    env = Environment(loader=FileSystemLoader(str(template_dir)))
-    template = env.get_template("report.html")
-    rendered_html = template.render(content=html_content)
+    if req.html:
+        rendered_html = req.html
+    elif req.markdown:
+        html_content = markdown.markdown(
+            req.markdown,
+            extensions=['extra', 'fenced_code', 'tables']
+        )
+        
+        import re
+        html_content = re.sub(
+            r'<em>(Figure\b[^<]*)</em>',
+            r'<em class="figure-caption">\1</em>',
+            html_content
+        )
+        
+        # ROOT is defined as the project root.
+        template_dir = ROOT / "backend" / "templates"
+        env = Environment(loader=FileSystemLoader(str(template_dir)))
+        template = env.get_template("report.html")
+        rendered_html = template.render(content=html_content)
+    else:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=400, detail="Must provide either 'markdown' or 'html'")
 
     try:
         from weasyprint import HTML
