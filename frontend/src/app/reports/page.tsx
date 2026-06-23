@@ -44,10 +44,28 @@ export default function ReportsPage() {
     : markdownContentRaw || "";
 
   const handleDownload = async (path: string, defaultName: string) => {
-    if (!markdownContent) return;
     try {
       const session = await supabase.auth.getSession();
       const token = session.data.session?.access_token;
+
+      // Prefer the stored HTML (exact same source as the iframe preview)
+      // so WeasyPrint renders pixel-identical to what the user sees.
+      let body: Record<string, string>;
+      if (selectedReport?.html_report_url) {
+        const { data: urlData } = await supabase.storage
+          .from("attack-artifacts")
+          .createSignedUrl(selectedReport.html_report_url, 120);
+        if (urlData?.signedUrl) {
+          const htmlText = await fetch(urlData.signedUrl).then(r => r.text());
+          body = { html: htmlText };
+        } else {
+          body = { markdown: markdownContent };
+        }
+      } else if (markdownContent) {
+        body = { markdown: markdownContent };
+      } else {
+        return;
+      }
 
       const response = await fetch("/api/generate-pdf", {
         method: "POST",
@@ -55,7 +73,7 @@ export default function ReportsPage() {
           "Content-Type": "application/json",
           "Authorization": `Bearer ${token}`
         },
-        body: JSON.stringify({ markdown: markdownContent })
+        body: JSON.stringify(body)
       });
 
       if (!response.ok) {
@@ -63,34 +81,30 @@ export default function ReportsPage() {
         throw new Error(errData.error || "PDF generation failed");
       }
 
+      // Trigger a direct download — never open in a new tab
       const blob = await response.blob();
-      const file = new Blob([blob], { type: 'application/pdf' });
-      const fileURL = URL.createObjectURL(file);
-      
-      // Open in a new tab so the user sees the PDF preview and can choose where to save/print it
-      const newWindow = window.open(fileURL, '_blank');
-      if (!newWindow) {
-        // If popup blocker blocked the new tab, fallback to direct download trigger
-        const a = document.createElement("a");
-        a.href = fileURL;
-        a.download = defaultName.replace(/\.md$/, ".pdf");
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-      }
+      const fileURL = URL.createObjectURL(new Blob([blob], { type: "application/pdf" }));
+      const a = document.createElement("a");
+      a.href = fileURL;
+      a.download = `report-${selectedReport?.id ?? "aegis"}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(fileURL);
+
     } catch (err: any) {
       console.error("PDF generation failed, falling back to Markdown download:", err);
-      alert(`Note: PDF Generation failed or is compiling. Falling back to Markdown download. (Error: ${err.message})`);
-      
-      // Fallback: Download raw markdown file directly so the button is always responsive
+      alert(`PDF generation failed. Falling back to Markdown download.\n\nError: ${err.message}`);
+
+      if (!markdownContent) return;
       const blob = new Blob([markdownContent], { type: "text/markdown;charset=utf-8" });
-      const url = window.URL.createObjectURL(blob);
+      const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
       a.download = defaultName;
       document.body.appendChild(a);
       a.click();
-      window.URL.revokeObjectURL(url);
+      URL.revokeObjectURL(url);
       document.body.removeChild(a);
     }
   };

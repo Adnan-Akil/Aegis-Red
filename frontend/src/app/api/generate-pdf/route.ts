@@ -28,17 +28,17 @@ export async function POST(req: Request) {
     return NextResponse.json({ success: false, error: "Invalid request body." }, { status: 400 });
   }
 
-  const { markdown } = rawBody;
+  const { markdown, html } = rawBody;
 
-  if (!markdown) {
-    return NextResponse.json({ success: false, error: "Missing markdown content." }, { status: 400 });
+  if (!markdown && !html) {
+    return NextResponse.json({ success: false, error: "Missing markdown or html content." }, { status: 400 });
   }
 
   try {
     const backendResponse = await fetch(`${BACKEND_URL}/api/generate-pdf`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ markdown }),
+      body: JSON.stringify(html ? { html } : { markdown }),
     });
 
     if (!backendResponse.ok) {
