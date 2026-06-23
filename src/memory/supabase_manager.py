@@ -76,6 +76,21 @@ class SupabaseManager:
         except Exception as e:
             logger.warning(f"Supabase add_finding failed: {e}")
 
+    def _upload_with_retry(self, bucket: str, path: str, file_bytes: bytes, content_type: str, max_retries: int = 3):
+        import time
+        for attempt in range(max_retries):
+            try:
+                self.supabase.storage.from_(bucket).upload(
+                    path=path,
+                    file=file_bytes,
+                    file_options={"content-type": content_type}
+                )
+                return
+            except Exception as e:
+                if attempt == max_retries - 1:
+                    raise e
+                time.sleep(1)
+
     def complete_session(self, verdict: str, overall_score: float, payload_content: str = "", report_content: str = ""):
         """Finalizes the session and uploads the payload trace and formal report."""
         if not self.session_id:
@@ -86,11 +101,7 @@ class SupabaseManager:
             try:
                 # Format: user_id/session_id_trace.md
                 file_path = f"{self.user_id}/{self.session_id}_trace.md"
-                self.supabase.storage.from_("attack-artifacts").upload(
-                    path=file_path,
-                    file=payload_content.encode('utf-8'),
-                    file_options={"content-type": "text/markdown"}
-                )
+                self._upload_with_retry("attack-artifacts", file_path, payload_content.encode('utf-8'), "text/markdown")
                 payload_url = file_path 
             except Exception as e:
                 logger.error(f"Failed to upload payload trace to Supabase: {e}")
@@ -101,11 +112,7 @@ class SupabaseManager:
             try:
                 # Format: user_id/session_id_report.md
                 report_path = f"{self.user_id}/{self.session_id}_report.md"
-                self.supabase.storage.from_("attack-artifacts").upload(
-                    path=report_path,
-                    file=report_content.encode('utf-8'),
-                    file_options={"content-type": "text/markdown"}
-                )
+                self._upload_with_retry("attack-artifacts", report_path, report_content.encode('utf-8'), "text/markdown")
                 report_url = report_path
                 
                 # Convert to HTML and upload
@@ -130,11 +137,7 @@ class SupabaseManager:
                 rendered_html = template.render(content=html_content)
                 
                 html_report_path = f"{self.user_id}/{self.session_id}_report.html"
-                self.supabase.storage.from_("attack-artifacts").upload(
-                    path=html_report_path,
-                    file=rendered_html.encode('utf-8'),
-                    file_options={"content-type": "text/html"}
-                )
+                self._upload_with_retry("attack-artifacts", html_report_path, rendered_html.encode('utf-8'), "text/html")
                 html_report_url = html_report_path
 
             except Exception as e:
@@ -185,11 +188,7 @@ class SupabaseManager:
             
         file_path = f"{self.user_id}/{self.session_id}_{chart_name}.png"
         try:
-            self.supabase.storage.from_("attack-charts").upload(
-                path=file_path,
-                file=image_bytes,
-                file_options={"content-type": "image/png"}
-            )
+            self._upload_with_retry("attack-charts", file_path, image_bytes, "image/png")
         except Exception as e:
             logger.error(f"Failed to upload chart {chart_name} to Supabase: {e}")
             
