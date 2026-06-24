@@ -367,8 +367,17 @@ def generate_pdf(req: PDFRequest):
         raise HTTPException(status_code=400, detail="Must provide either 'markdown' or 'html'")
 
     try:
-        from weasyprint import HTML
-        pdf_bytes = HTML(string=rendered_html).write_pdf()
+        from weasyprint import HTML, CSS
+        # Force a single continuous page: override @page via an external stylesheet
+        # which takes cascade precedence over anything inside the HTML document.
+        # This is the only reliable way to prevent WeasyPrint from paginating to A4.
+        single_page_override = CSS(string="""
+            @page {
+                size: 210mm auto !important;
+                margin: 0 !important;
+            }
+        """)
+        pdf_bytes = HTML(string=rendered_html).write_pdf(stylesheets=[single_page_override])
     except Exception as e:
         import sys
         error_msg = str(e)
