@@ -12,7 +12,6 @@ from datetime import datetime
 
 from src.memory.schemas import AttackAttempt, TargetProfile, AttackPayload
 from src.tools.browser.playwright_driver import PlaywrightDriver
-from src.tools.browser.selectors import SELECTORS
 
 logger = logging.getLogger(__name__)
 

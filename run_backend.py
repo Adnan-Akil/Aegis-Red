@@ -15,7 +15,6 @@ def start_server():
     if sys.platform == "win32":
         asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
     
-    import uvicorn
     from uvicorn import Config, Server
     from backend.main import app
 

@@ -69,7 +69,7 @@ Output a JSON object exactly matching this schema:
         notes=content.get("notes", "Automated threat modeling failed.")
     )
     
-    logger.info(f"Threat Model Complete.")
+    logger.info("Threat Model Complete.")
     logger.info(f"Suspected Capabilities: {profile.suspected_capabilities}")
     logger.info(f"Constraints: {profile.known_constraints}")
     logger.info(f"Notes: {profile.notes}")

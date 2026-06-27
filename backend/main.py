@@ -9,7 +9,6 @@ import asyncio
 import logging
 import os
 import sys
-import uuid
 from pathlib import Path
 
 # ── Windows: switch to ProactorEventLoop so Playwright can spawn subprocesses ─
@@ -21,13 +20,13 @@ if sys.platform == "win32":
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse, Response
-from pydantic import BaseModel, HttpUrl
+from pydantic import BaseModel
 
 # ── Ensure project root is on sys.path so src/ is importable ─────────────────
 ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(ROOT))
 
-from dotenv import load_dotenv
+from dotenv import load_dotenv  # noqa: E402
 load_dotenv(ROOT / ".env")
 
 # ── Logging ───────────────────────────────────────────────────────────────────
@@ -76,8 +75,6 @@ async def _stream_attack(req: RunRequest, disconnect: asyncio.Event) -> None:
     Import and invoke the same run() logic as run_attack.py,
     but yield stdout lines over SSE so the frontend can stream them.
     """
-    import io
-    import contextlib
 
     # Lazy import after sys.path is set
     from src.agents.mapper import map_surface
@@ -86,7 +83,6 @@ async def _stream_attack(req: RunRequest, disconnect: asyncio.Event) -> None:
     from src.pipelines.graph import app as orchestrator_app
     from src.evaluation.report_generator import generate_cybersec_report
     from src.memory.supabase_manager import SupabaseManager
-    from src.memory.schemas import TargetProfile
     import urllib.parse
 
     db = SupabaseManager()
@@ -111,7 +107,6 @@ async def _stream_attack(req: RunRequest, disconnect: asyncio.Event) -> None:
     if url.startswith("http"):
         parsed = urllib.parse.urlparse(url)
         name = parsed.netloc or "external_target"
-        target_type = "unknown"
         actual_target_type = "unknown"
         port = parsed.port or (443 if parsed.scheme == "https" else 80)
     else:
@@ -128,7 +123,7 @@ async def _stream_attack(req: RunRequest, disconnect: asyncio.Event) -> None:
         yield _emit(f"🔍 Mapping attack surface for {name}...")
         mapper_data = await map_surface(url, target_name=name, target_type=actual_target_type)
 
-        yield _emit(f"🧠 Generating threat model...")
+        yield _emit("🧠 Generating threat model...")
         target = await generate_threat_model(
             url,
             target_name=name,
@@ -144,7 +139,7 @@ async def _stream_attack(req: RunRequest, disconnect: asyncio.Event) -> None:
         if discovered_sels:
             target.discovered_selectors = discovered_sels
 
-        yield _emit(f"\n🕵️ Active Prober: Interrogating target to discover capabilities...")
+        yield _emit("\n🕵️ Active Prober: Interrogating target to discover capabilities...")
         target = await active_probe(target)
 
     except Exception as recon_err:
@@ -181,10 +176,10 @@ async def _stream_attack(req: RunRequest, disconnect: asyncio.Event) -> None:
         "recursion_limit": 150,
     }
 
-    yield _emit(f"\n==================================================")
+    yield _emit("\n==================================================")
     yield _emit(f"🚀 Starting Attack Session: {session_id}")
     yield _emit(f"🎯 Target: {target.name} ({target.target_type}) at {target.url}")
-    yield _emit(f"==================================================\n")
+    yield _emit("==================================================\n")
 
 
     last_attempt = None
@@ -293,7 +288,7 @@ async def _stream_attack(req: RunRequest, disconnect: asyncio.Event) -> None:
         report_content=report_content,
     )
 
-    yield _emit(f"✅ Session Complete. Trace and Report uploaded to Supabase Storage.")
+    yield _emit("✅ Session Complete. Trace and Report uploaded to Supabase Storage.")
     yield _emit("==================================================\n")
 
 
@@ -379,7 +374,6 @@ def generate_pdf(req: PDFRequest):
         """)
         pdf_bytes = HTML(string=rendered_html).write_pdf(stylesheets=[single_page_override])
     except Exception as e:
-        import sys
         error_msg = str(e)
         detail = (
             f"PDF Generation failed: {error_msg}. "

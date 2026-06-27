@@ -5,7 +5,6 @@ CLI entry point to execute an attack session against a target.
 Demonstrates the full autonomous loop: Planning -> Execution -> Evaluation
 """
 import asyncio
-import uuid
 import logging
 import argparse
 import urllib.parse
@@ -15,17 +14,15 @@ from pathlib import Path
 # Force UTF-8 encoding for standard output to support emojis on Windows
 sys.stdout.reconfigure(encoding='utf-8')
 
-from src import config
-from src.evaluation.report_generator import generate_cybersec_report
-from src.evaluation.md_compiler import TraceBuilder
+from src.evaluation.report_generator import generate_cybersec_report  # noqa: E402
+from src.evaluation.md_compiler import TraceBuilder  # noqa: E402
 
-from src.memory.schemas import TargetProfile
-from src.memory.supabase_manager import SupabaseManager
-from src.pipelines.graph import app as orchestrator_app
-from src.agents.mapper import map_surface
-from src.agents.threat_modeler import generate_threat_model
+from src.memory.supabase_manager import SupabaseManager  # noqa: E402
+from src.pipelines.graph import app as orchestrator_app  # noqa: E402
+from src.agents.mapper import map_surface  # noqa: E402
+from src.agents.threat_modeler import generate_threat_model  # noqa: E402
 
-from logging.handlers import RotatingFileHandler
+from logging.handlers import RotatingFileHandler  # noqa: E402
 
 Path("logs").mkdir(exist_ok=True)
 # Rotating log: max 2MB per file, keep 3 backups
@@ -96,7 +93,7 @@ async def run(target_type: str, port: int, iterations: int, mutations: int, user
     
     # Active Probing Phase
     from src.agents.prober import active_probe
-    print(f"\n🕵️ Active Prober: Interrogating target to discover capabilities...")
+    print("\n🕵️ Active Prober: Interrogating target to discover capabilities...")
     target = await active_probe(target)
     
     # Save target config & start session
@@ -123,10 +120,10 @@ async def run(target_type: str, port: int, iterations: int, mutations: int, user
         "recursion_limit": 150
     }
     
-    print(f"\n==================================================")
+    print("\n==================================================")
     print(f"🚀 Starting Attack Session: {session_id}")
     print(f"🎯 Target: {target.name} ({target.target_type}) at {target.url}")
-    print(f"==================================================\n")
+    print("==================================================\n")
     
     last_attempt = None
     max_score = 0.0
@@ -154,7 +151,8 @@ async def run(target_type: str, port: int, iterations: int, mutations: int, user
                         print(f" ├── 🗡️ Attack: {attempt.category.upper()} (Payload ID: {attempt.payload_id})")
 
                         sent_text = attempt.payload_text.replace('\n', ' ')
-                        if len(sent_text) > 100: sent_text = sent_text[:100] + "..."
+                        if len(sent_text) > 100:
+                            sent_text = sent_text[:100] + "..."
                         print(f" ├── 💬 Sent: \"{sent_text}\"")
 
                         db.add_log("ATTACK_SENT", f"Sent {attempt.category} payload", "action")
@@ -167,7 +165,8 @@ async def run(target_type: str, port: int, iterations: int, mutations: int, user
 
                         rcvd_text = last_attempt.response_text.replace('\n', ' ')
                         preview_len = 250 if eval_res.score > 0 else 100
-                        if len(rcvd_text) > preview_len: rcvd_text = rcvd_text[:preview_len] + "..."
+                        if len(rcvd_text) > preview_len:
+                            rcvd_text = rcvd_text[:preview_len] + "..."
                         print(f" ├── 🛡️ Rcvd: \"{rcvd_text}\" ({last_attempt.duration_ms}ms)")
 
                         if eval_res.score == 1.0:
@@ -215,7 +214,7 @@ async def run(target_type: str, port: int, iterations: int, mutations: int, user
     markdown_trace = trace_builder.render()
 
     print("\n==================================================")
-    print(f"Generating formal penetration test report...")
+    print("Generating formal penetration test report...")
     report_content = await generate_cybersec_report(markdown_trace, target.url, session_id)
 
     db.complete_session(
@@ -225,7 +224,7 @@ async def run(target_type: str, port: int, iterations: int, mutations: int, user
         report_content=report_content
     )
 
-    print(f"✅ Session Complete. Trace and Report uploaded to Supabase Storage.")
+    print("✅ Session Complete. Trace and Report uploaded to Supabase Storage.")
     print("==================================================\n")
 
 if __name__ == "__main__":

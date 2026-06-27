@@ -23,6 +23,7 @@ import aiosqlite
 from .schemas import (
     AttackAttempt,
     EvaluationResult,
+    AttackPayload,
     TargetProfile,
     VulnerabilityFinding,
 )

@@ -407,9 +407,9 @@ async def map_surface(url: str, target_name: str, target_type: str) -> dict:
             # ── Step 2: Internal links ──────────────────────────────────────
             links = await page.eval_on_selector_all("a[href]", "els => els.map(e => e.href)")
             domain = urlparse(url).netloc
-            internal = [l for l in links if urlparse(l).netloc == domain and l.rstrip("/") != url.rstrip("/")]
-            priority = [l for l in internal if any(
-                k in l.lower() for k in ["chat", "support", "help", "assistant", "contact", "ask", "bot", "ai"]
+            internal = [link for link in links if urlparse(link).netloc == domain and link.rstrip("/") != url.rstrip("/")]
+            priority = [link for link in internal if any(
+                k in link.lower() for k in ["chat", "support", "help", "assistant", "contact", "ask", "bot", "ai"]
             )]
             ordered = list(dict.fromkeys(priority + internal))[:10]
 

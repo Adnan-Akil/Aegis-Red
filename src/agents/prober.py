@@ -161,7 +161,6 @@ async def active_probe(target: TargetProfile) -> TargetProfile:
         for host, spec in openapi_specs.items():
             info = spec.get("info", {})
             title = info.get("title", "").lower()
-            description = info.get("description", "").lower()
             
             logger.info(f"Analyzing OpenAPI specification: Title='{info.get('title')}'")
             
@@ -243,7 +242,7 @@ async def active_probe(target: TargetProfile) -> TargetProfile:
         
     client = AsyncGroq(api_key=api_key)
     
-    system_prompt = f"""You are a cybersecurity expert classifying an unknown AI system based on its responses to specific probes and structural network/API traffic clues.
+    system_prompt = """You are a cybersecurity expert classifying an unknown AI system based on its responses to specific probes and structural network/API traffic clues.
 Respond ONLY with a valid JSON object.
 
 CLASSIFICATION CRITERIA:
@@ -262,11 +261,11 @@ CLASSIFICATION CRITERIA:
 4. "unknown" -> If responses are empty, contradictory, or entirely blocked by a WAF.
 
 Return ONLY this JSON object:
-{{
+{
     "inferred_type": "rag" | "tool_agent" | "chatbot" | "unknown",
     "capabilities": ["list", "of", "capabilities"],
     "reasoning": "One sentence justifying your classification based on specific probe answers or structural/network evidence"
-}}"""
+}"""
 
     # If we already have a high-confidence structural verdict, we suggest it to the LLM to guarantee alignment
     user_prompt = f"Probe Transcript and Structural/Network Info:\n{full_context}"

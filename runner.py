@@ -1,7 +1,6 @@
 import argparse
 import subprocess
 import time
-import urllib.request
 import os
 import sys
 import atexit
@@ -15,18 +14,6 @@ def _venv_python() -> str:
 
 
 TARGET_CONFIG = {
-    "hardened_bot": {
-        "dir": "benchmark_apps/hardened_variants",
-        "backend_port": 8002
-    },
-    "hardened_rag": {
-        "dir": "benchmark_apps/hardened_variants",
-        "backend_port": 8002
-    },
-    "hardened_tool": {
-        "dir": "benchmark_apps/hardened_variants",
-        "backend_port": 8002
-    },
     "sdk_chatbot": {
         "dir": "test_targets/vercel_boilerplate",
         "type": "static",
@@ -49,7 +36,7 @@ def cleanup():
         try:
             p.terminate()
             p.kill()
-        except:
+        except Exception:
             pass
 
 atexit.register(cleanup)
@@ -69,7 +56,7 @@ def kill_process_on_port(port):
         else:
             # For Linux/Mac compatibility just in case
             subprocess.run(["fuser", "-k", f"{port}/tcp"], capture_output=True)
-    except Exception as e:
+    except Exception:
         pass
 
 def wait_for_server(url, name, timeout=30):
@@ -106,7 +93,7 @@ def main():
         print("==================================================")
         print(f"🚀 Initializing External Live Target: {args.target}")
         print("==================================================")
-        print(f"\n🤖 Launching Autonomous Agent against live URL...\n")
+        print("\n🤖 Launching Autonomous Agent against live URL...\n")
         try:
             subprocess.run([venv_python, "run_attack.py", args.target, "--iter", str(args.iter)], check=True)
         except subprocess.CalledProcessError:

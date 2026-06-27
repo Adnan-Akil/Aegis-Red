@@ -20,7 +20,7 @@ from typing import Literal
 
 from playwright.async_api import async_playwright, Browser, BrowserContext, Page
 
-from .selectors import SELECTORS, TargetSelectors
+from .selectors import SELECTORS
 
 logger = logging.getLogger(__name__)
 

@@ -6,7 +6,7 @@ and trace logs from structured data models.
 """
 from typing import Any, Dict, List, Optional
 from datetime import datetime
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 @dataclass
 class TraceIteration:
@@ -57,7 +57,7 @@ class TraceBuilder:
 
     def set_termination(self, marker_type: str, message: str):
         if marker_type == "cancelled":
-            self.termination_marker = f"\n> ⚠️ **Session was cancelled before completion.**\n"
+            self.termination_marker = "\n> ⚠️ **Session was cancelled before completion.**\n"
         elif marker_type == "error":
             self.termination_marker = f"\n> ❌ **Session terminated with error:** `{message}`\n"
 

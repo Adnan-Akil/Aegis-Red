@@ -12,7 +12,6 @@ from typing import Literal
 
 from groq import AsyncGroq
 from src.memory.schemas import AttackAttempt, AttackPayload, EvaluationResult
-from src.config import DEFAULT_MODEL
 
 logger = logging.getLogger(__name__)
 

@@ -9,12 +9,12 @@ from src.memory.schemas import TargetProfile, AttackPayload, AttackAttempt, Eval
 from src.memory.sqlite_manager import SQLiteManager
 from src.tools.attacks.registry import AttackRegistry
 
-logger = logging.getLogger(__name__)
-
 import os
 import json
 from groq import AsyncGroq
 from src.config import DEFAULT_MODEL
+
+logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
