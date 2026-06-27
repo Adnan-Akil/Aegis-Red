@@ -1,0 +1,91 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  security-scan:
+    name: Security & File Blocker
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Gitleaks Secret Scanner
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          
+      - name: Restricted Files Blocker
+        run: |
+          # The list of files and folders that must not be tracked by git
+          RESTRICTED_ITEMS=("progress.md" "mistake.md" "Research Paper" "final documents")
+          FAILED=0
+          
+          for item in "${RESTRICTED_ITEMS[@]}"; do
+            # Check if the item is currently tracked by git
+            if git ls-files | grep -iq "^$item"; then
+              echo "::error::Restricted item '$item' is tracked in the repository! Please remove it from git (e.g. git rm --cached -r \"$item\")."
+              FAILED=1
+            fi
+          done
+          
+          if [ $FAILED -eq 1 ]; then
+            exit 1
+          fi
+
+  backend-check:
+    name: Backend Quality
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+          cache: "pip"
+          
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install ruff
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          
+      - name: Run Ruff Linting
+        run: ruff check .
+        
+      - name: Validate Core Pipeline Import
+        run: python -c "from src.pipelines.graph import app"
+
+  frontend-check:
+    name: Frontend Build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./frontend
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20.x"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+          
+      - name: Install dependencies
+        run: npm ci
+        
+      - name: Run Linter
+        run: npm run lint
+        
+      - name: Build Frontend
+        run: npm run build
