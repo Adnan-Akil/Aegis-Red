@@ -88,4 +88,7 @@ jobs:
         run: npm run lint
         
       - name: Build Frontend
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: "https://dummy.supabase.co"
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: "dummy-key"
         run: npm run build
