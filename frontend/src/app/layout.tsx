@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
-import { AppShell } from "@/components/AppShell";
+import { AppProvider } from "./context";
 import "./globals.css";
 
 const chasteFont = localFont({
@@ -8,11 +8,8 @@ const chasteFont = localFont({
   variable: "--font-chaste",
 });
 
-import { AppProvider } from "./context";
-import { AuthWrapper } from "@/components/AuthWrapper";
-
 export const metadata: Metadata = {
-  title: "Aegis-Red Dashboard",
+  title: "Aegis-Red",
   description: "Autonomous Multi-Agent AI Security Framework",
 };
 
@@ -22,19 +19,15 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${chasteFont.variable} antialiased h-screen w-screen overflow-hidden`}>
+    <html lang="en" className={`${chasteFont.variable} antialiased`}>
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link href="https://fonts.googleapis.com/css2?family=Elms+Sans:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet" />
       </head>
-      <body className="h-full w-full bg-zinc-900 text-zinc-300 flex flex-col select-none">
+      <body className="bg-zinc-900 text-zinc-300 select-none">
         <AppProvider>
-          <AuthWrapper>
-            <AppShell>
-              {children}
-            </AppShell>
-          </AuthWrapper>
+          {children}
         </AppProvider>
       </body>
     </html>

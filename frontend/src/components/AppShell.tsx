@@ -20,7 +20,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   } = useAppContext();
 
   const pathname = usePathname();
-  const isHomePage = pathname === "/";
+  const isHomePage = pathname === "/dashboard";
 
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -173,7 +173,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           {/* Nav Icons */}
           <div className="flex items-center gap-6">
             {[
-              { href: "/", Icon: Home, label: "Home", id: "tour-nav-home" },
+              { href: "/dashboard", Icon: Home, label: "Home", id: "tour-nav-home" },
               { href: "/reports", Icon: FileText, label: "Reports", id: "tour-nav-reports" },
               { href: "/logs", Icon: ScrollText, label: "Logs", id: "tour-nav-logs" },
             ].map(({ href, Icon, label, id }) => (

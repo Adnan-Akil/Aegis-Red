@@ -152,7 +152,7 @@ function logLineStyle(line: string): string {
 }
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
-export default function LandingPage() {
+export default function DashboardPage() {
   const router = useRouter();
   const {
     userName,
@@ -196,7 +196,7 @@ export default function LandingPage() {
     if (statusText && !isScanning) {
       const t = setTimeout(() => {
         setStatusText("");
-      }, 3000); // 3 seconds timeout
+      }, 3000);
       return () => clearTimeout(t);
     }
   }, [statusText, isScanning, setStatusText]);
@@ -230,7 +230,6 @@ export default function LandingPage() {
     abortControllerRef.current = new AbortController();
     scanStartTimeRef.current = Date.now();
 
-    // Derive initial target name from URL right away
     setTargetName(getHostname(url));
 
     let wasCompleted = false;
@@ -247,14 +246,13 @@ export default function LandingPage() {
           isTimeoutTriggered = true;
           abortControllerRef.current.abort();
         }
-      }, 120000); // 120s read idle timeout to accommodate LLM + Chart Generation
+      }, 120000);
     };
 
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("No authenticated user found");
 
-      // Retrieve the live session token to send as a Bearer token
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.access_token) throw new Error("No active session token");
 
@@ -263,7 +261,7 @@ export default function LandingPage() {
           isConnectTimeoutTriggered = true;
           abortControllerRef.current.abort();
         }
-      }, 20000); // 20s connection timeout
+      }, 20000);
 
       const response = await fetch("/api/run", {
         method: "POST",
@@ -306,15 +304,11 @@ export default function LandingPage() {
           for (const line of lines) {
             if (!line.trim()) continue;
 
-            // Append to log
             setLogLines(prev => [...prev, line]);
 
-            // Parse metrics
-            // Target name (override from stream)
             const targetMatch = line.match(/🎯 Target: (.+?) \(/);
             if (targetMatch) setTargetName(targetMatch[1].trim());
 
-            // Iteration — reset mutation counter
             const iterMatch = line.match(/\[Iteration (\d+)\]/);
             if (iterMatch) {
               setCurrentIteration(parseInt(iterMatch[1]));
@@ -322,13 +316,11 @@ export default function LandingPage() {
               setCurrentMutation(0);
             }
 
-            // New attack attempt — increment mutation
             if (line.includes("🗡️ Attack:")) {
               mutCount += 1;
               setCurrentMutation(mutCount);
             }
 
-            // Verdict score → severity
             const scoreMatch = line.match(/Score\s+([\d.]+)/);
             if (scoreMatch) {
               setCurrentSeverity(Math.round(parseFloat(scoreMatch[1]) * 100));
@@ -367,7 +359,6 @@ export default function LandingPage() {
 
     if (wasCompleted) {
       setTimeout(() => router.push("/reports"), 800);
-      // Reset the component state in the background after routing away
       setTimeout(() => {
         setIsScanning(false);
         setStatusText("");
@@ -418,7 +409,7 @@ export default function LandingPage() {
               transition={{ duration: 0.5, ease: "easeOut" }}>
               <div>
                 <h2 className="font-medium text-white mb-2 tracking-tight" style={{ fontSize: "2.67rem" }}>{getGreeting()}, {userName}.</h2>
-                <p className="text-zinc-400" style={{ fontSize: "1.19rem" }}>Probe. Exploit. Harden. — AI red-teaming with surgical precision.</p>
+                <p className="text-zinc-400" style={{ fontSize: "1.19rem" }}>Probe. Exploit. Harden. — AI security testing with surgical precision.</p>
               </div>
 
               <AnimatePresence>
@@ -508,7 +499,6 @@ export default function LandingPage() {
 
               <div className="relative z-10 w-full rounded-lg p-1 flex items-center shadow-sm"
                 style={{ background: "rgba(16,16,18,0.90)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)", border: "1px solid rgba(255,255,255,0.08)" }}>
-                {/* Scanning pulse dot */}
                 <span className="ml-4 mr-3 shrink-0 relative flex h-2 w-2">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-500 opacity-75" />
                   <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500" />
