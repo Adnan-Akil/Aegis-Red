@@ -1,0 +1,15 @@
+[lint]
+ignore = [
+    "BLE001",  # Do not catch blind exception
+    "S110",    # try-except-pass
+    "S112",    # try-except-continue
+    "PLW1510", # subprocess.run without check
+    "PLW0602", # global variable assignment warning
+    "SIM102",  # nested if statements
+    "G201",    # Logging .exception instead of exc_info
+    "DTZ003",  # datetime.utcnow()
+    "DTZ005",  # datetime.now() without tz
+    "ASYNC230",# blocking IO in async
+    "TRY002",  # custom exceptions
+    "RUF012",  # mutable default values
+]

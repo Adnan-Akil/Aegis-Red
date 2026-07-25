@@ -11,7 +11,7 @@ __all__ = [
     "AttackAttempt",
     "AttackPayload",
     "EvaluationResult",
+    "SQLiteManager",
     "TargetProfile",
     "VulnerabilityFinding",
-    "SQLiteManager",
 ]

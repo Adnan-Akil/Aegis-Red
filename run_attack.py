@@ -4,25 +4,24 @@ run_attack.py
 CLI entry point to execute an attack session against a target.
 Demonstrates the full autonomous loop: Planning -> Execution -> Evaluation
 """
+import argparse
 import asyncio
 import logging
-import argparse
-import urllib.parse
 import sys
+import urllib.parse
 from pathlib import Path
 
 # Force UTF-8 encoding for standard output to support emojis on Windows
 sys.stdout.reconfigure(encoding='utf-8')
 
-from src.evaluation.report_generator import generate_cybersec_report  # noqa: E402
-from src.evaluation.md_compiler import TraceBuilder  # noqa: E402
+from logging.handlers import RotatingFileHandler
 
-from src.memory.supabase_manager import SupabaseManager  # noqa: E402
-from src.pipelines.graph import app as orchestrator_app  # noqa: E402
-from src.agents.mapper import map_surface  # noqa: E402
-from src.agents.threat_modeler import generate_threat_model  # noqa: E402
-
-from logging.handlers import RotatingFileHandler  # noqa: E402
+from src.agents.mapper import map_surface
+from src.agents.threat_modeler import generate_threat_model
+from src.evaluation.md_compiler import TraceBuilder
+from src.evaluation.report_generator import generate_cybersec_report
+from src.memory.supabase_manager import SupabaseManager
+from src.pipelines.graph import app as orchestrator_app
 
 Path("logs").mkdir(exist_ok=True)
 # Rotating log: max 2MB per file, keep 3 backups
@@ -92,9 +91,9 @@ async def run(target_type: str, port: int, iterations: int, mutations: int, user
         actual_target_type = declared_type
         logging.getLogger(__name__).info(f"Using caller-declared target type: {actual_target_type}")
     
-    from src.memory.schemas import ComponentScore, ThreatModel  # noqa: E402
-    from src.agents.goal_resolver import resolve_attack_goal  # noqa: E402
-    from src.memory.benchmark_store import BenchmarkStore  # noqa: E402
+    from src.agents.goal_resolver import resolve_attack_goal
+    from src.memory.benchmark_store import BenchmarkStore
+    from src.memory.schemas import ComponentScore, ThreatModel
 
     # Reconnaissance Phase (Module 1 & 2)
     mapper_data = await map_surface(url, target_name=name, target_type=actual_target_type)

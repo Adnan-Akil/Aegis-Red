@@ -1,7 +1,9 @@
-import os
 import logging
+import os
 from datetime import datetime
-from supabase import create_client, Client
+
+from supabase import Client, create_client
+
 from src.config import ROOT_DIR
 
 logger = logging.getLogger(__name__)
@@ -85,9 +87,9 @@ class SupabaseManager:
                     file_options={"content-type": content_type}
                 )
                 return
-            except Exception as e:
+            except Exception:
                 if attempt == max_retries - 1:
-                    raise e
+                    raise
                 time.sleep(1)
 
     def complete_session(self, verdict: str, overall_score: float, payload_content: str = "", report_content: str = ""):
@@ -115,9 +117,10 @@ class SupabaseManager:
                 report_url = report_path
                 
                 # Convert to HTML and upload
+                import re
+
                 import markdown
                 from jinja2 import Environment, FileSystemLoader
-                import re
                 
                 html_content = markdown.markdown(
                     report_content,

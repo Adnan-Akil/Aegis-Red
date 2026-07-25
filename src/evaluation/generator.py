@@ -1,9 +1,10 @@
-import asyncio
 import argparse
-from pathlib import Path
+import asyncio
 from datetime import datetime
+from pathlib import Path
 
 from src.memory.sqlite_manager import SQLiteManager
+
 
 async def generate_report(target_id: str, output_dir: str = "reports"):
     out_dir = Path(output_dir)

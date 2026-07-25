@@ -1,12 +1,14 @@
-import os
-import logging
 import asyncio
-from pydantic import BaseModel
+import logging
+import os
 from typing import Literal
+
 from groq import AsyncGroq
-from src.memory.schemas import TargetProfile, ComponentScore
-from src.tools.browser.playwright_driver import PlaywrightDriver
+from pydantic import BaseModel
+
 from src.config import FAST_MODEL
+from src.memory.schemas import ComponentScore, TargetProfile
+from src.tools.browser.playwright_driver import PlaywrightDriver
 from src.utils.llm import call_llm_with_retry
 
 logger = logging.getLogger(__name__)
@@ -109,9 +111,9 @@ async def active_probe(target: TargetProfile, session_id: str = "") -> tuple[Tar
 
 
     logger.info(f"Page Title: '{metadata.get('title')}', Streamlit components: {metadata.get('has_streamlit')}")
-    from urllib.parse import urlparse
-    import urllib.request
     import json
+    import urllib.request
+    from urllib.parse import urlparse
 
     backend_hosts = set()
     for trace in traces:

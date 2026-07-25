@@ -4,9 +4,10 @@ Use this instead of `uvicorn backend.main:app` on Windows.
 Sets WindowsProactorEventLoopPolicy before uvicorn creates any event loop,
 which is required for Playwright's subprocess spawning to work.
 """
-import sys
-import os
 import asyncio
+import os
+import sys
+
 
 def start_server():
     # Insert cwd into sys.path since multiprocessing spawn loses it
@@ -16,6 +17,7 @@ def start_server():
         asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
     
     from uvicorn import Config, Server
+
     from backend.main import app
 
     config = Config(app=app, host="0.0.0.0", port=8000, loop="none")

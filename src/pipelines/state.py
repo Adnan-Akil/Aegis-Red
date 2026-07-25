@@ -4,17 +4,18 @@ core_framework/orchestrator/state.py
 LangGraph State definitions for the Attack Graph.
 """
 import operator
-from typing import TypedDict, Annotated, Literal
+from typing import Annotated, Literal, TypedDict
 
 from src.memory.schemas import (
-    TargetProfile, 
-    ThreatModel,
+    AttackAttempt,
+    AttackPayload,
     ComponentScore,
-    AttackPayload, 
-    AttackAttempt, 
-    EvaluationResult, 
-    VulnerabilityFinding
+    EvaluationResult,
+    TargetProfile,
+    ThreatModel,
+    VulnerabilityFinding,
 )
+
 
 class AttackState(TypedDict):
     """LangGraph State for an attack session."""

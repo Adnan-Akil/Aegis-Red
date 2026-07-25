@@ -1,19 +1,24 @@
+import logging
 import os
 import sys
-import yaml
+
 import httpx
-import logging
-from typing import Optional, List
+import yaml
+from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
-from dotenv import load_dotenv
 
 # Include parent directory to locate local dependencies
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from benchmark_apps.factory_defenses import InputFilter, OutputFilter, DLPMonitor, SemanticFilter
+from benchmark_apps.factory_defenses import (
+    DLPMonitor,
+    InputFilter,
+    OutputFilter,
+    SemanticFilter,
+)
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -35,17 +40,17 @@ app.add_middleware(
 
 # Active Target configurations
 target_config = {}
-input_filter: Optional[InputFilter] = None
-output_filter: Optional[OutputFilter] = None
-dlp_monitor: Optional[DLPMonitor] = None
-semantic_filter: Optional[SemanticFilter] = None
+input_filter: InputFilter | None = None
+output_filter: OutputFilter | None = None
+dlp_monitor: DLPMonitor | None = None
+semantic_filter: SemanticFilter | None = None
 
 class Message(BaseModel):
     role: str
     content: str
 
 class ChatPayload(BaseModel):
-    messages: List[Message]
+    messages: list[Message]
 
 @app.get("/health")
 def health():
@@ -189,7 +194,7 @@ def configure(config: dict):
     logger.info(f"Target Factory configured as: {config.get('name')} (Tier {config.get('tier')})")
     return {"status": "configured", "name": config.get("name")}
 
-def query_model(messages: List[dict], system_prompt: str) -> str:
+def query_model(messages: list[dict], system_prompt: str) -> str:
     """
     Direct model execution layer using primary configuration key.
     """
@@ -330,9 +335,10 @@ def chat(payload: ChatPayload):
     return {"role": "assistant", "content": raw_response}
 
 if __name__ == "__main__":
-    import uvicorn
     # Accept configuration filepath as argument
     import argparse
+
+    import uvicorn
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", help="Path to initial configuration YAML file")
     parser.add_argument("--port", type=int, default=8002)

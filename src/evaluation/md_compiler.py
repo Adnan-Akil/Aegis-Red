@@ -4,24 +4,25 @@ md_compiler.py
 Deterministic Markdown compiler for generating cybersecurity audit reports
 and trace logs from structured data models.
 """
-from typing import Any, Dict, List, Optional
-from datetime import datetime
 from dataclasses import dataclass
+from datetime import datetime
+from typing import Any
+
 
 @dataclass
 class TraceAttempt:
     category: str = "Unknown"
     payload_text: str = ""
-    response_text: Optional[str] = None
-    verdict: Optional[str] = None
+    response_text: str | None = None
+    verdict: str | None = None
     score: float = 0.0
-    reasoning: Optional[str] = None
+    reasoning: str | None = None
     status: str = "pending"
 
 @dataclass
 class TraceIteration:
     iteration: int
-    attempts: List[TraceAttempt] = None
+    attempts: list[TraceAttempt] = None
     
     def __post_init__(self):
         if self.attempts is None:
@@ -32,8 +33,8 @@ class TraceBuilder:
         self.session_id: str = session_id
         self.target_url: str = target_url
         self.target_type: str = target_type
-        self.iterations: List[TraceIteration] = []
-        self.termination_marker: Optional[str] = None
+        self.iterations: list[TraceIteration] = []
+        self.termination_marker: str | None = None
 
     def start_iteration(self, iteration_num: int):
         # If there is a pending iteration with a pending attempt, close it first
@@ -56,7 +57,7 @@ class TraceBuilder:
                 current_attempt.reasoning = reasoning
                 current_attempt.status = "completed"
 
-    def close_pending(self, status: str, reasoning: str, response_text: Optional[str] = None):
+    def close_pending(self, status: str, reasoning: str, response_text: str | None = None):
         if self.iterations:
             current_it = self.iterations[-1]
             if current_it.attempts and current_it.attempts[-1].status == "pending":
@@ -120,14 +121,14 @@ class TraceBuilder:
 
         return "\n".join(md)
 
-def escape_markdown(text: Optional[str]) -> str:
+def escape_markdown(text: str | None) -> str:
     """Escapes pipes and backslashes to prevent breaking markdown tables."""
     if not text:
         return ""
     # Replace markdown pipes
     return text.replace("|", "\\|").replace("\n", " ").strip()
 
-def format_blockquote(text: Optional[str], truncate_len: int = 1000) -> str:
+def format_blockquote(text: str | None, truncate_len: int = 1000) -> str:
     """Formats a block of text as a clean markdown blockquote, truncating if too long."""
     if not text:
         return "> *(No text content provided)*"
@@ -140,7 +141,7 @@ def format_blockquote(text: Optional[str], truncate_len: int = 1000) -> str:
     lines = [f"> {line}" for line in cleaned.split("\n")]
     return "\n".join(lines)
 
-def compile_report(data: Dict[str, Any], target_url: str, session_id: str) -> str:
+def compile_report(data: dict[str, Any], target_url: str, session_id: str) -> str:
     """
     Deterministically compiles structured LLM JSON output into a high-fidelity
     Markdown cybersecurity audit report.

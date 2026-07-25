@@ -1,9 +1,11 @@
-import os
 import json
 import logging
+import os
+
 from groq import AsyncGroq
-from src.memory.schemas import TargetProfile, ComponentScore
+
 from src.config import FAST_MODEL
+from src.memory.schemas import ComponentScore, TargetProfile
 from src.utils.llm import call_llm_with_retry
 
 logger = logging.getLogger(__name__)

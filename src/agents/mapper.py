@@ -14,16 +14,15 @@ import json
 import logging
 import os
 from dataclasses import dataclass
-from typing import Optional
 from urllib.parse import urlparse
 
 from groq import AsyncGroq
-from src.config import FAST_MODEL
-from src.utils.llm import call_llm_with_retry
 
+from src.config import FAST_MODEL
 from src.tools.browser.playwright_driver import PlaywrightDriver
+from src.tools.browser.selector_manager import get_cached_selectors, save_to_cache
 from src.tools.browser.selectors import SELECTORS
-from src.tools.browser.selector_manager import save_to_cache, get_cached_selectors
+from src.utils.llm import call_llm_with_retry
 
 logger = logging.getLogger(__name__)
 
@@ -156,7 +155,7 @@ async def _wait(page, timeout: int = 5000) -> None:
         pass
 
 
-async def _first_match(page, candidates: list[str]) -> Optional[str]:
+async def _first_match(page, candidates: list[str]) -> str | None:
     """Return first selector from candidates that resolves to at least one element."""
     for sel in candidates:
         try:
@@ -169,7 +168,7 @@ async def _first_match(page, candidates: list[str]) -> Optional[str]:
 
 # ── Stage 1: Heuristic ───────────────────────────────────────────────────────
 
-async def _detect_heuristic(page) -> Optional[DiscoveredSurface]:
+async def _detect_heuristic(page) -> DiscoveredSurface | None:
     """Broad ordered CSS/ARIA pattern matching. No LLM cost."""
     # Give SPA a moment to render
     try:
@@ -208,7 +207,7 @@ async def _detect_heuristic(page) -> Optional[DiscoveredSurface]:
 
 # ── Stage 2: DOM Proximity ────────────────────────────────────────────────────
 
-async def _detect_proximity(page) -> Optional[DiscoveredSurface]:
+async def _detect_proximity(page) -> DiscoveredSurface | None:
     """
     JavaScript DOM traversal: for every textarea/input/contenteditable,
     walk up the DOM tree up to 4 levels looking for a sibling button.
@@ -279,7 +278,7 @@ If NO chat interface: {"has_chat": false}
 Selector rules: prefer #id > [aria-label] > tag[attr] > .class. Must be valid for querySelector()."""
 
 
-async def _detect_llm(page) -> Optional[DiscoveredSurface]:
+async def _detect_llm(page) -> DiscoveredSurface | None:
     """Groq LLM analyses a cleaned HTML snapshot. Last-resort fallback."""
     api_key = os.getenv("GROQ_API_KEY")
     if not api_key:
@@ -338,7 +337,7 @@ async def _detect_llm(page) -> Optional[DiscoveredSurface]:
 
 # ── Detection pipeline ────────────────────────────────────────────────────────
 
-async def _pipeline(page) -> Optional[DiscoveredSurface]:
+async def _pipeline(page) -> DiscoveredSurface | None:
     """Run stages in order; return on first success. Persist on discovery."""
     await _wait(page)
     surface = await _detect_heuristic(page)
@@ -375,7 +374,7 @@ async def map_surface(url: str, target_name: str, target_type: str) -> dict:
     """
     logger.info("--- Module 1: Adaptive Surface Mapper ---")
     discovery_url = url
-    surface: Optional[DiscoveredSurface] = None
+    surface: DiscoveredSurface | None = None
 
     # ── Cache hit: skip detection entirely if domain was seen before ───────────
     domain = urlparse(url).netloc

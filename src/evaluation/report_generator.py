@@ -1,11 +1,13 @@
-import os
 import json
 import logging
+import os
 from datetime import datetime
+
 from groq import AsyncGroq
+
 from src.config import FAST_MODEL
-from src.utils.llm import call_llm_with_retry
 from src.evaluation.md_compiler import compile_report
+from src.utils.llm import call_llm_with_retry
 
 logger = logging.getLogger(__name__)
 
@@ -128,8 +130,11 @@ Respond ONLY with the JSON object. Do not include markdown code fence wrappers (
         # --- Chart Generation & Upload ---
         try:
             from src.evaluation.chart_generator import (
-                generate_severity_donut, generate_radar_chart, 
-                generate_timeline_gantt, generate_funnel_chart, generate_surface_map
+                generate_funnel_chart,
+                generate_radar_chart,
+                generate_severity_donut,
+                generate_surface_map,
+                generate_timeline_gantt,
             )
             from src.memory.supabase_manager import SupabaseManager
             

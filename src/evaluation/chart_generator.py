@@ -1,11 +1,13 @@
 import io
 import logging
-import numpy as np
+
 import matplotlib
+import numpy as np
+
 matplotlib.use('Agg')  # Headless backend
+
 import matplotlib.pyplot as plt
 import networkx as nx
-from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -48,7 +50,7 @@ def generate_severity_donut(findings: list) -> bytes:
         ax.text(0.5, 0.5, "0 Vulnerabilities\nDetected", ha='center', va='center', fontsize=20, color=COLORS['Low'])
         ax.axis('off')
     else:
-        wedges, texts, autotexts = ax.pie(sizes, labels=labels, colors=colors, autopct='%1.1f%%', startangle=90, pctdistance=0.85)
+        _wedges, _texts, _autotexts = ax.pie(sizes, labels=labels, colors=colors, autopct='%1.1f%%', startangle=90, pctdistance=0.85)
         centre_circle = plt.Circle((0, 0), 0.70, fc='#1e1e1e')
         fig.gca().add_artist(centre_circle)
         ax.axis('equal')  
@@ -56,7 +58,7 @@ def generate_severity_donut(findings: list) -> bytes:
     plt.title('Vulnerability Severity Distribution', color='#18181b')
     return _save_to_bytes(fig)
 
-def generate_radar_chart(findings: list) -> Optional[bytes]:
+def generate_radar_chart(findings: list) -> bytes | None:
     if not findings:
         return None
         
@@ -84,7 +86,7 @@ def generate_radar_chart(findings: list) -> Optional[bytes]:
     values += values[:1]
     angles += angles[:1]
     
-    fig, ax = plt.subplots(figsize=(6, 6), subplot_kw=dict(polar=True))
+    fig, ax = plt.subplots(figsize=(6, 6), subplot_kw={'polar': True})
     plt.xticks(angles[:-1], categories, color='#3f3f46', size=10)
     ax.set_rlabel_position(0)
     plt.yticks([max_score*0.25, max_score*0.5, max_score*0.75, max_score], [], color="#3f3f46", size=7)

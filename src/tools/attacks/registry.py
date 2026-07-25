@@ -20,11 +20,12 @@ Usage:
 from __future__ import annotations
 
 from src.memory.schemas import AttackPayload
+
+from .escalation import ESCALATION_PAYLOADS
 from .jailbreaks import JAILBREAK_PAYLOADS
 from .leakage import LEAKAGE_PAYLOADS
-from .tool_abuse import TOOL_ABUSE_PAYLOADS
-from .escalation import ESCALATION_PAYLOADS
 from .obfuscation import OBFUSCATION_PAYLOADS
+from .tool_abuse import TOOL_ABUSE_PAYLOADS
 
 __all__ = ["AttackRegistry"]
 
