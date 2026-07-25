@@ -62,9 +62,23 @@ async def executor_node(state: AttackState) -> dict[str, Any]:
         
     attempt = await execute_attack(state["session_id"], state["target"], payload)
     
-    # Save attempt to DB immediately
+    # Save attempt to SQLite DB immediately
     async with SQLiteManager() as db:
         await db.save_attempt(attempt)
+
+    # Dual-Sync to Supabase Cloud if available
+    try:
+        from src.memory.supabase_manager import SupabaseManager
+        sp_db = SupabaseManager()
+        if sp_db.supabase and state.get("session_id"):
+            sp_db.session_id = state["session_id"]
+            sp_db.add_log(
+                event="EXECUTION_STEP",
+                description=f"Attempt {attempt.attempt_id} executed payload '{payload.name}' ({payload.category})",
+                log_type="info"
+            )
+    except Exception as sp_err:
+        logger.debug(f"Supabase dual-sync skipped/failed in executor_node: {sp_err}")
     
     # Emit executor component score
     is_sentinel = any(attempt.response_text.startswith(s) for s in ("[AEGIS_TIMEOUT:", "[AEGIS_ERROR:", "[AEGIS_NO_RESPONSE:"))
@@ -112,6 +126,22 @@ async def evaluator_node(state: AttackState) -> dict[str, Any]:
         await db.save_evaluation(eval_result)
         for f in new_findings:
             await db.save_finding(f)
+
+    # Dual-Sync findings to Supabase Cloud if available
+    try:
+        from src.memory.supabase_manager import SupabaseManager
+        sp_db = SupabaseManager()
+        if sp_db.supabase and state.get("session_id"):
+            sp_db.session_id = state["session_id"]
+            sp_db.add_log(
+                event="EVALUATION_STEP",
+                description=f"Evaluation Verdict: {eval_result.verdict.upper()} (Score: {eval_result.score}) - {eval_result.reasoning[:120]}...",
+                log_type="success" if eval_result.verdict == "success" else "info"
+            )
+            for f in new_findings:
+                sp_db.add_finding(finding_type=f.category, extracted_value=f.description)
+    except Exception as sp_err:
+        logger.debug(f"Supabase dual-sync skipped/failed in evaluator_node: {sp_err}")
             
     # Emit evaluator component score
     eval_comp_score = ComponentScore(

@@ -243,10 +243,9 @@ export function LandingPage() {
           {/* Subtitle */}
           <motion.p
             variants={heroItem}
-            className="text-zinc-400 max-w-xl text-base sm:text-lg leading-relaxed mb-10"
+            className="text-zinc-400 max-w-xl text-base sm:text-lg leading-relaxed mb-10 uppercase tracking-widest font-mono text-xs sm:text-sm text-zinc-400/90"
           >
-            Autonomous multi-agent AI security testing. Deploy adversarial probe campaigns
-            against large language models — and get actionable reports in seconds.
+            Deploy autonomous AI agents to pen-test, probe, and report on large language model vulnerabilities.
           </motion.p>
 
           {/* CTA Buttons */}
@@ -331,8 +330,8 @@ export function LandingPage() {
           viewport={{ once: true }}
           transition={{ duration: 0.65, ease: [0.22, 1, 0.36, 1] }}
         >
-          <p className="text-xs font-mono tracking-[0.3em] uppercase text-zinc-600 mb-3">Capabilities</p>
-          <h2 className="text-3xl sm:text-4xl font-bold text-white" style={{ letterSpacing: "0.04em" }}>
+          <p className="text-[10px] font-mono tracking-[0.35em] uppercase text-zinc-500/60 mb-2">Capabilities</p>
+          <h2 className="text-2xl sm:text-3xl font-semibold text-zinc-200 opacity-90" style={{ letterSpacing: "0.04em" }}>
             Built for adversarial AI research
           </h2>
           <p className="text-zinc-500 text-sm mt-3 max-w-md mx-auto leading-relaxed">
@@ -483,8 +482,8 @@ export function LandingPage() {
             viewport={{ once: true }}
             transition={{ duration: 0.65 }}
           >
-            <p className="text-xs font-mono tracking-[0.3em] uppercase text-zinc-600 mb-3">Workflow</p>
-            <h2 className="text-3xl sm:text-4xl font-bold text-white" style={{ letterSpacing: "0.04em" }}>
+            <p className="text-[10px] font-mono tracking-[0.35em] uppercase text-zinc-500/60 mb-2">Workflow</p>
+            <h2 className="text-2xl sm:text-3xl font-semibold text-zinc-200 opacity-90" style={{ letterSpacing: "0.04em" }}>
               From target to report in minutes
             </h2>
           </motion.div>
@@ -550,8 +549,8 @@ export function LandingPage() {
       >
         {/* Glow */}
         <div
-          className="absolute inset-0 pointer-events-none"
-          style={{ background: "radial-gradient(ellipse at 50% 80%, rgba(220,38,38,0.06) 0%, transparent 60%)" }}
+          className="absolute inset-0 pointer-events-none z-0"
+          style={{ background: "radial-gradient(ellipse at 50% 80%, rgba(220,38,38,0.12) 0%, transparent 60%)" }}
         />
 
         <motion.div
@@ -561,9 +560,9 @@ export function LandingPage() {
           viewport={{ once: true }}
           transition={{ duration: 0.75, ease: [0.22, 1, 0.36, 1] }}
         >
-          <p className="text-xs font-mono tracking-[0.3em] uppercase text-zinc-600 mb-4">Ready to deploy?</p>
+          <p className="text-[10px] font-mono tracking-[0.35em] uppercase text-zinc-500/60 mb-3">Ready to deploy?</p>
           <h2
-            className="text-4xl sm:text-5xl font-bold text-white mb-5"
+            className="text-3xl sm:text-4xl font-semibold text-zinc-200 mb-5"
             style={{ fontFamily: "var(--font-chaste)", letterSpacing: "0.1em", lineHeight: 1.1 }}
           >
             Aegis-Red
@@ -600,17 +599,17 @@ export function LandingPage() {
 
       {/* ── FOOTER ───────────────────────────────────────────────────────── */}
       <footer
-        className="w-full py-8 px-6 flex flex-col sm:flex-row items-center justify-between gap-3"
+        className="w-full py-8 px-6 flex flex-col sm:flex-row items-center justify-between gap-3 relative z-10"
         style={{ background: "#080809", borderTop: "1px solid rgba(255,255,255,0.04)" }}
       >
         <span
-          className="text-zinc-700 text-xs tracking-widest uppercase font-mono"
+          className="text-zinc-200 text-sm font-bold tracking-widest uppercase font-mono drop-shadow-sm"
           style={{ fontFamily: "var(--font-chaste)", letterSpacing: "0.2em" }}
         >
           Aegis-Red
         </span>
-        <span className="text-zinc-700 text-xs font-mono">
-          © 2025 · For authorised AI security research only.
+        <span className="text-zinc-400 text-xs font-mono">
+          © 2026 · For authorised AI security research only.
         </span>
       </footer>
 
