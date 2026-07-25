@@ -297,6 +297,10 @@ async def _stream_attack(req: RunRequest, disconnect: asyncio.Event) -> None:
 
 
 # ── Routes ────────────────────────────────────────────────────────────────────
+from backend.auth import verify_supabase_jwt
+from src.utils.ssrf_guard import validate_target_url
+
+
 @app.get("/health")
 async def health() -> dict:
     import asyncio
@@ -305,8 +309,15 @@ async def health() -> dict:
 
 
 @app.post("/run")
-async def run_attack(body: RunRequest, request: Request) -> StreamingResponse:
-    # Basic validation
+async def run_attack(
+    body: RunRequest,
+    request: Request,
+    user: dict = Depends(verify_supabase_jwt)
+) -> StreamingResponse:
+    # Authenticated user_id overrides untrusted body payload
+    body.user_id = user["id"]
+
+    # Basic target validation
     safe_targets = {"chatbot", "rag", "tool_agent"}
     is_valid_url = body.url.startswith("http://") or body.url.startswith("https://")
     is_safe_target = body.url in safe_targets
@@ -316,6 +327,16 @@ async def run_attack(body: RunRequest, request: Request) -> StreamingResponse:
             status_code=400,
             detail="Invalid target. Must be a valid URL (http/https) or a predefined local target name.",
         )
+
+    # SSRF Target Protection Check (if URL target)
+    if is_valid_url:
+        is_safe_ssrf, ssrf_err = validate_target_url(body.url)
+        if not is_safe_ssrf:
+            logger.warning(f"SSRF Target Guard blocked request to '{body.url}' for user {user['id']}: {ssrf_err}")
+            raise HTTPException(
+                status_code=400,
+                detail=f"Target Security Violation: {ssrf_err}",
+            )
 
     disconnect_event = asyncio.Event()
 
@@ -337,7 +358,10 @@ async def run_attack(body: RunRequest, request: Request) -> StreamingResponse:
     )
 
 @app.post("/api/generate-pdf")
-def generate_pdf(req: PDFRequest):
+def generate_pdf(
+    req: PDFRequest,
+    user: dict = Depends(verify_supabase_jwt)
+):
     import markdown
     from jinja2 import Environment, FileSystemLoader
 

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { motion, useScroll, useTransform, AnimatePresence, type Variants } from "framer-motion";
 import { supabase } from "@/lib/supabase";
 import { AuthModal } from "@/components/AuthModal";
+import { AuroraBars } from "@/components/unlumen-ui/aurora-bars";
 import {
   ShieldCheck,
   Network,
@@ -163,6 +164,9 @@ export function LandingPage() {
 
         {/* Dark overlay */}
         <div className="absolute inset-0 z-0 bg-black/40" />
+
+        {/* Unlumen UI Aurora Bars Background */}
+        <AuroraBars className="z-1 mix-blend-screen" />
 
         {/* Vignette */}
         <div

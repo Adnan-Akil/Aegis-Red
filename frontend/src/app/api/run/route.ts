@@ -107,7 +107,10 @@ export async function POST(req: Request) {
   try {
     const backendResponse = await fetch(`${BACKEND_URL}/run`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`,
+      },
       body: JSON.stringify(safePayload),
       signal: req.signal,
     });
