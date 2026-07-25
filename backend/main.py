@@ -299,7 +299,6 @@ async def _stream_attack(req: RunRequest, disconnect: asyncio.Event) -> None:
 
 
 # ── Routes ────────────────────────────────────────────────────────────────────
-from backend.auth import verify_supabase_jwt
 from src.utils.ssrf_guard import validate_target_url
 
 

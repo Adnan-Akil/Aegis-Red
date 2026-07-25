@@ -14,6 +14,7 @@ ignore = [
     "ASYNC230",# blocking IO in async
     "TRY002",  # custom exceptions
     "RUF012",  # mutable default values
+    "B008",    # Do not perform function call Depends in argument defaults
 ]
 
 [lint.isort]
