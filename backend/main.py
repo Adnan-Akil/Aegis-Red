@@ -19,14 +19,15 @@ if sys.platform == "win32":
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse, Response
+from fastapi.responses import Response, StreamingResponse
 from pydantic import BaseModel
 
 # ── Ensure project root is on sys.path so src/ is importable ─────────────────
 ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(ROOT))
 
-from dotenv import load_dotenv  # noqa: E402
+from dotenv import load_dotenv
+
 load_dotenv(ROOT / ".env")
 
 # ── Logging ───────────────────────────────────────────────────────────────────
@@ -63,6 +64,8 @@ class RunRequest(BaseModel):
     mutations: int = 2
     headless: bool = True
     user_id: str = "00000000-0000-0000-0000-000000000000"
+    share_benchmark: bool = True
+
 
 class PDFRequest(BaseModel):
     markdown: str | None = None
@@ -77,13 +80,14 @@ async def _stream_attack(req: RunRequest, disconnect: asyncio.Event) -> None:
     """
 
     # Lazy import after sys.path is set
+    import urllib.parse
+
     from src.agents.mapper import map_surface
-    from src.agents.threat_modeler import generate_threat_model
     from src.agents.prober import active_probe
-    from src.pipelines.graph import app as orchestrator_app
+    from src.agents.threat_modeler import generate_threat_model
     from src.evaluation.report_generator import generate_cybersec_report
     from src.memory.supabase_manager import SupabaseManager
-    import urllib.parse
+    from src.pipelines.graph import app as orchestrator_app
 
     db = SupabaseManager()
 
@@ -362,7 +366,7 @@ def generate_pdf(req: PDFRequest):
         raise HTTPException(status_code=400, detail="Must provide either 'markdown' or 'html'")
 
     try:
-        from weasyprint import HTML, CSS
+        from weasyprint import CSS, HTML
         # Force a single continuous page: override @page via an external stylesheet
         # which takes cascade precedence over anything inside the HTML document.
         # This is the only reliable way to prevent WeasyPrint from paginating to A4.

@@ -6,16 +6,18 @@ LangGraph orchestrator that wires up Planner, Executor, and Evaluator.
 import logging
 from typing import Any
 
-from langgraph.graph import StateGraph, END
 from langgraph.checkpoint.memory import MemorySaver
+from langgraph.graph import END, StateGraph
+
+from src.agents.evaluator import evaluate_attempt
+from src.agents.executor import execute_attack
+from src.agents.mutator import mutate_payload
+from src.agents.planner import select_next_payload
+from src.memory.benchmark_store import BenchmarkStore
+from src.memory.schemas import BenchmarkRecord, ComponentScore, VulnerabilityFinding
+from src.memory.sqlite_manager import SQLiteManager
 
 from .state import AttackState
-from src.agents.planner import select_next_payload
-from src.agents.executor import execute_attack
-from src.agents.evaluator import evaluate_attempt
-from src.agents.mutator import mutate_payload
-from src.memory.schemas import VulnerabilityFinding
-from src.memory.sqlite_manager import SQLiteManager
 
 logger = logging.getLogger(__name__)
 
@@ -38,13 +40,15 @@ async def planner_node(state: AttackState) -> dict[str, Any]:
         logger.info("Max iterations reached.")
         return {"status": "done"}
         
-    next_payload = await select_next_payload(target, state.get("history", []))
+    threat_model = state.get("threat_model")
+    next_payload, p_scores = await select_next_payload(target, state.get("history", []), threat_model=threat_model)
     if not next_payload:
         logger.info("No more payloads to try.")
         return {"status": "done"}
         
     return {
         "current_payload": next_payload,
+        "component_scores": p_scores,
         "mutations_for_current": 0,
         "iteration": iteration + 1,
         "status": "executing"
@@ -62,8 +66,19 @@ async def executor_node(state: AttackState) -> dict[str, Any]:
     async with SQLiteManager() as db:
         await db.save_attempt(attempt)
     
+    # Emit executor component score
+    is_sentinel = any(attempt.response_text.startswith(s) for s in ("[AEGIS_TIMEOUT:", "[AEGIS_ERROR:", "[AEGIS_NO_RESPONSE:"))
+    exec_score = ComponentScore(
+        session_id=state["session_id"],
+        component="executor",
+        confidence=0.0 if is_sentinel else 1.0,
+        method="deterministic",
+        notes="Sentinel response detected" if is_sentinel else "Successful response execution",
+    )
+
     return {
         "current_attempt": attempt,
+        "component_scores": [exec_score],
         "status": "evaluating"
     }
 
@@ -98,9 +113,44 @@ async def evaluator_node(state: AttackState) -> dict[str, Any]:
         for f in new_findings:
             await db.save_finding(f)
             
+    # Emit evaluator component score
+    eval_comp_score = ComponentScore(
+        session_id=state["session_id"],
+        component="evaluator",
+        confidence=eval_result.score,
+        method=eval_result.evaluation_method,
+        notes=f"Verdict: {eval_result.verdict}. {eval_result.reasoning[:80]}",
+    )
+
+    all_scores = state.get("component_scores", []) + [eval_comp_score]
+    comp_map = {s.component: s.confidence for s in all_scores}
+    pipeline_conf = round(sum(comp_map.values()) / max(len(comp_map), 1), 2)
+
+    threat_model = state.get("threat_model")
+    sec_level = threat_model.security_level if threat_model else "unknown"
+    attack_goal = threat_model.attack_goal if threat_model else "jailbreak"
+
+    benchmark_record = BenchmarkRecord(
+        session_id=state["session_id"],
+        attack_id=attempt.attempt_id,
+        target_id=state["target"].target_id,
+        target_type=state["target"].target_type,
+        security_level=sec_level,
+        attack_goal=attack_goal,
+        payload_category=payload.category,
+        verdict=eval_result.verdict,
+        score=eval_result.score,
+        pipeline_confidence=pipeline_conf,
+        component_scores=comp_map,
+        evaluation_method=eval_result.evaluation_method,
+    )
+
+    store = BenchmarkStore()
+    await store.record(benchmark_record)
+
     # Decide next step: Mutate or pick next payload
     mutations_count = state.get("mutations_for_current", 0)
-    if eval_result.verdict != "success" and mutations_count < 2:
+    if eval_result.verdict != "success" and mutations_count < state.get("max_mutations", 3):
         next_status = "mutating"
     else:
         next_status = "planning"
@@ -131,6 +181,7 @@ async def evaluator_node(state: AttackState) -> dict[str, Any]:
         "current_evaluation": eval_result,
         "history": [(attempt, eval_result)],
         "findings": new_findings,
+        "component_scores": [eval_comp_score],
         "status": next_status,
         "target": target
     }

@@ -4,14 +4,17 @@ core_framework/agents/evaluator.py
 Evaluator Agent module.
 Implements the hybrid evaluation strategy (Deterministic Layer 1 + LLM Judge Layer 2).
 """
-import os
-import re
 import base64
 import logging
+import os
+import re
 from typing import Literal
 
 from groq import AsyncGroq
+
+from src.config import FAST_MODEL
 from src.memory.schemas import AttackAttempt, AttackPayload, EvaluationResult
+from src.utils.llm import call_llm_with_retry
 
 logger = logging.getLogger(__name__)
 
@@ -200,7 +203,7 @@ async def evaluate_attempt(
     # ---------------------------------------------------------
     # Check if the bot responded with a Base64-encoded document dump.
     # This is a critical RAG exfiltration signal — decode locally and verify.
-    b64_raw, b64_decoded = _detect_and_decode_base64(attempt.response_text)
+    _b64_raw, b64_decoded = _detect_and_decode_base64(attempt.response_text)
     if b64_decoded:
         # Check decoded cleartext for RAG document leak keywords
         decoded_lower = b64_decoded.lower()
@@ -364,8 +367,9 @@ VERDICT: NO
 Then one sentence of reasoning.
 """
     try:
-        response = await client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
+        response = await call_llm_with_retry(
+            client.chat.completions.create,
+            model=FAST_MODEL,
             messages=[
                 {
                     "role": "system",
@@ -422,5 +426,5 @@ Then one sentence of reasoning.
             verdict="fail",
             score=0.0,
             evaluation_method="llm_judge",
-            reasoning=f"LLM Judge failed: {str(e)}"
+            reasoning=f"LLM Judge failed: {e!s}"
         )

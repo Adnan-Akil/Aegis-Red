@@ -14,11 +14,12 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import time
 import os
+import time
 from typing import Literal
 
-from playwright.async_api import async_playwright, Browser, BrowserContext, Page
+from playwright.async_api import Browser, BrowserContext, Page, async_playwright
+from typing_extensions import Self
 
 from .selectors import SELECTORS
 
@@ -68,8 +69,9 @@ class PlaywrightDriver:
             self._selectors = SELECTORS[target_name].copy()
             logger.debug(f"Using hardcoded selectors for known target '{target_name}'")
         else:
-            from .selector_manager import get_cached_selectors
             from urllib.parse import urlparse
+
+            from .selector_manager import get_cached_selectors
             path = urlparse(url).path.rstrip("/")
             # NOTE: /assistant path-hint removed — the old tool_agent_vuln Tailwind app
             # that used div.text-indigo-400 selectors has been deleted. Keeping the hint
@@ -102,7 +104,7 @@ class PlaywrightDriver:
     # Context manager
     # ------------------------------------------------------------------
 
-    async def __aenter__(self) -> "PlaywrightDriver":
+    async def __aenter__(self) -> Self:
         self._playwright = await async_playwright().start()
         
         headless_env = os.environ.get("PLAYWRIGHT_HEADLESS", "true").lower() == "true"
@@ -390,8 +392,9 @@ class PlaywrightDriver:
                             bot_selector = fb
                             before_count = max(0, cnt - 1)  # assume last is the new msg
                             # Persist the fix to selector cache
-                            from .selector_manager import save_to_cache
                             from urllib.parse import urlparse
+
+                            from .selector_manager import save_to_cache
                             domain = urlparse(self.url).netloc
                             if domain:
                                 updated = dict(self._selectors)

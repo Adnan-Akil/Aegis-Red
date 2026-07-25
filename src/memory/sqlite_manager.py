@@ -19,11 +19,12 @@ from datetime import datetime
 from pathlib import Path
 
 import aiosqlite
+from typing_extensions import Self
 
 from .schemas import (
     AttackAttempt,
-    EvaluationResult,
     AttackPayload,
+    EvaluationResult,
     TargetProfile,
     VulnerabilityFinding,
 )
@@ -67,7 +68,7 @@ class SQLiteManager:
             await self._db.close()
             self._db = None
 
-    async def __aenter__(self) -> "SQLiteManager":
+    async def __aenter__(self) -> Self:
         await self.init()
         return self
 
@@ -242,14 +243,14 @@ class SQLiteManager:
             timestamp=datetime.fromisoformat(row["timestamp"]),
             turn_index=row["turn_index"],
             duration_ms=row["duration_ms"],
-            parent_payload_id=row["parent_payload_id"] if "parent_payload_id" in row.keys() else None,
+            parent_payload_id=row.get("parent_payload_id", None),
         )
 
     async def get_successful_mutations_by_type(
         self,
         target_type: str,
         target_id: str,
-    ) -> list["AttackPayload"]:
+    ) -> list[AttackPayload]:
         """
         Return memorized mutations that are likely to work against targets of
         *target_type*, ranked by cross-target reliability score.

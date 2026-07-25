@@ -1,11 +1,14 @@
-import os
 import json
 import logging
-import uuid
+import os
 import re
+import uuid
+
 from groq import AsyncGroq
-from src.memory.schemas import AttackPayload, TargetProfile, AttackAttempt
-from src.config import DEFAULT_MODEL
+
+from src.config import FAST_MODEL
+from src.memory.schemas import AttackAttempt, AttackPayload, TargetProfile
+from src.utils.llm import call_llm_with_retry
 
 logger = logging.getLogger(__name__)
 
@@ -102,8 +105,9 @@ Reply in valid JSON format:
     
     logger.info(f"Generating mutation for {failed_payload.payload_id}...")
     try:
-        response = await client.chat.completions.create(
-            model=DEFAULT_MODEL,
+        response = await call_llm_with_retry(
+            client.chat.completions.create,
+            model=FAST_MODEL,
             messages=[{"role": "user", "content": prompt}],
             response_format={"type": "json_object"},
             temperature=0.8,

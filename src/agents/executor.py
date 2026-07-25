@@ -5,12 +5,12 @@ Executor Agent module.
 Responsible for taking an AttackPayload and executing it against a TargetProfile
 using the PlaywrightDriver. Handles multi-turn payloads sequentially.
 """
+import logging
 import re
 import time
-import logging
 from datetime import datetime
 
-from src.memory.schemas import AttackAttempt, TargetProfile, AttackPayload
+from src.memory.schemas import AttackAttempt, AttackPayload, TargetProfile
 from src.tools.browser.playwright_driver import PlaywrightDriver
 
 logger = logging.getLogger(__name__)

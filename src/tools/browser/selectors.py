@@ -18,7 +18,7 @@ tab switcher for selecting bot / rag / tool mode.
 
 from typing import TypedDict
 
-__all__ = ["TargetSelectors", "SELECTORS"]
+__all__ = ["SELECTORS", "TargetSelectors"]
 
 
 class TargetSelectors(TypedDict):
