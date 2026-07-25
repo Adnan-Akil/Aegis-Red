@@ -359,7 +359,7 @@ async def run_attack(
     )
 
 @app.post("/api/generate-pdf")
-def generate_pdf(
+async def generate_pdf(
     req: PDFRequest,
     user: dict = Depends(verify_supabase_jwt)
 ):
@@ -387,10 +387,9 @@ def generate_pdf(
         template = env.get_template("report.html")
         rendered_html = template.render(content=html_content)
     else:
-        from fastapi import HTTPException
         raise HTTPException(status_code=400, detail="Must provide either 'markdown' or 'html'")
 
-    try:
+    def _render_pdf_bytes(html_str: str) -> bytes:
         from weasyprint import CSS, HTML
         # Force a single continuous page: override @page via an external stylesheet
         # which takes cascade precedence over anything inside the HTML document.
@@ -401,7 +400,11 @@ def generate_pdf(
                 margin: 0 !important;
             }
         """)
-        pdf_bytes = HTML(string=rendered_html).write_pdf(stylesheets=[single_page_override])
+        return HTML(string=html_str).write_pdf(stylesheets=[single_page_override])
+
+    try:
+        loop = asyncio.get_running_loop()
+        pdf_bytes = await loop.run_in_executor(None, _render_pdf_bytes, rendered_html)
     except Exception as e:
         error_msg = str(e)
         detail = (
@@ -410,7 +413,6 @@ def generate_pdf(
             "libraries (Cairo, Pango) to be installed. "
             "The hosted Hugging Face Docker deployment includes these libraries and will work out of the box."
         )
-        from fastapi import HTTPException
         raise HTTPException(status_code=500, detail=detail)
     
     return Response(
