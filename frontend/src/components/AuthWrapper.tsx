@@ -17,6 +17,19 @@ export function AuthWrapper({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const enforceSecurityPolicy = async () => {
+      // Force logout on hard refresh
+      if (typeof window !== "undefined") {
+        const navEntries = window.performance.getEntriesByType("navigation");
+        if (
+          navEntries.length > 0 &&
+          (navEntries[0] as PerformanceNavigationTiming).type === "reload"
+        ) {
+          await supabase.auth.signOut();
+          router.replace("/");
+          return;
+        }
+      }
+
       const {
         data: { session },
       } = await supabase.auth.getSession();
