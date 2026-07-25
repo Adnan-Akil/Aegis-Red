@@ -11,6 +11,8 @@ import logging
 from typing import Literal
 
 from groq import AsyncGroq
+from src.config import FAST_MODEL
+from src.utils.llm import call_llm_with_retry
 from src.memory.schemas import AttackAttempt, AttackPayload, EvaluationResult
 
 logger = logging.getLogger(__name__)
@@ -364,8 +366,9 @@ VERDICT: NO
 Then one sentence of reasoning.
 """
     try:
-        response = await client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
+        response = await call_llm_with_retry(
+            client.chat.completions.create,
+            model=FAST_MODEL,
             messages=[
                 {
                     "role": "system",

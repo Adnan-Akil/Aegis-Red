@@ -63,6 +63,8 @@ class RunRequest(BaseModel):
     mutations: int = 2
     headless: bool = True
     user_id: str = "00000000-0000-0000-0000-000000000000"
+    share_benchmark: bool = True
+
 
 class PDFRequest(BaseModel):
     markdown: str | None = None

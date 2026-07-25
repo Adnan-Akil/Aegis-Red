@@ -35,9 +35,21 @@ logging.basicConfig(level=logging.INFO, handlers=[_log_handler])
 # Suppress noisy external logs
 logging.getLogger("httpx").setLevel(logging.WARNING)
 
-async def run(target_type: str, port: int, iterations: int, mutations: int, user_id: str = "00000000-0000-0000-0000-000000000000"):
+async def run(target_type: str, port: int, iterations: int, mutations: int, user_id: str = "00000000-0000-0000-0000-000000000000", declared_type: str | None = None):
     # Initialize Supabase Manager
     db = SupabaseManager()
+    
+    # Auto-resolve active user ID from database if default mock is provided
+    if user_id == "00000000-0000-0000-0000-000000000000":
+        try:
+            response = db.supabase.table("attack_sessions").select("user_id").order("created_at", desc=True).limit(1).execute()
+            if response.data:
+                resolved_id = response.data[0]["user_id"]
+                if resolved_id and resolved_id != "00000000-0000-0000-0000-000000000000":
+                    user_id = resolved_id
+                    logging.getLogger(__name__).info(f"Auto-resolved active user ID: {user_id}")
+        except Exception as e:
+            logging.getLogger(__name__).warning(f"Failed to auto-resolve active user ID: {e}")
     # Map input to our known targets
     target_names = {
         "chatbot": "chatbot_vuln",
@@ -73,14 +85,30 @@ async def run(target_type: str, port: int, iterations: int, mutations: int, user
         # Standard local benchmark target
         name = target_names.get(target_type, "unknown_target")
         url = f"http://localhost:{port}"
+
+    # If caller explicitly declared the type (from YAML blueprint), it overrides
+    # any heuristic or lookup — preventing misclassification during probing.
+    if declared_type and declared_type in ("chatbot", "rag", "tool_agent"):
+        actual_target_type = declared_type
+        logging.getLogger(__name__).info(f"Using caller-declared target type: {actual_target_type}")
     
+    from src.memory.schemas import ComponentScore, ThreatModel  # noqa: E402
+    from src.agents.goal_resolver import resolve_attack_goal  # noqa: E402
+    from src.memory.benchmark_store import BenchmarkStore  # noqa: E402
+
     # Reconnaissance Phase (Module 1 & 2)
     mapper_data = await map_surface(url, target_name=name, target_type=actual_target_type)
-    target = await generate_threat_model(url, target_name=name, base_target_type=actual_target_type, port=port, mapper_data=mapper_data)
+    target, tm_score = await generate_threat_model(url, target_name=name, base_target_type=actual_target_type, port=port, mapper_data=mapper_data)
     
+    mapper_score = ComponentScore(
+        session_id="",
+        component="mapper",
+        confidence=mapper_data.get("confidence", 0.85),
+        method=mapper_data.get("strategy", "heuristic"),
+        notes=f"Strategy: {mapper_data.get('strategy')}, Discovery URL: {mapper_data.get('discovery_url')}"
+    )
+
     # Wire mapper discoveries into the target profile
-    # Both discovery_url and discovered_selectors must be set so the executor
-    # navigates to the right page AND uses the right selectors.
     discovered_url = mapper_data.get("discovery_url", url)
     discovered_sels = mapper_data.get("selectors")
     if discovered_url != url:
@@ -94,21 +122,50 @@ async def run(target_type: str, port: int, iterations: int, mutations: int, user
     # Active Probing Phase
     from src.agents.prober import active_probe
     print("\n🕵️ Active Prober: Interrogating target to discover capabilities...")
-    target = await active_probe(target)
+    target, classifier_score = await active_probe(target)
     
     # Save target config & start session
     db.create_session(user_id=user_id, target_name=target.name, target_url=target.url, target_type=target.target_type)
     session_id = db.session_id
     db.add_log("RECON_COMPLETE", f"Discovered target type: {target.target_type}", "info")
+
+    # Set session_id on pre-session component scores
+    mapper_score.session_id = session_id
+    tm_score.session_id = session_id
+    classifier_score.session_id = session_id
+
+    # Resolve Attack Goal & Assemble ThreatModel
+    attack_goal, allowed_cats, rationale, goal_score = resolve_attack_goal(
+        session_id=session_id,
+        target_type=target.target_type,
+        security_filter_detected=target.security_filter_detected,
+    )
+
+    threat_model = ThreatModel(
+        session_id=session_id,
+        target_id=target.target_id,
+        target_type=target.target_type,
+        security_level="moderate" if target.security_filter_detected else "basic",
+        security_filter_detected=target.security_filter_detected,
+        suspected_capabilities=target.suspected_capabilities,
+        known_constraints=target.known_constraints,
+        attack_goal=attack_goal,
+        allowed_categories=allowed_cats,
+        goal_rationale=rationale,
+        threat_model_confidence=tm_score.confidence,
+        raw_notes=target.notes,
+    )
     
     initial_state = {
         "session_id": session_id,
         "target": target,
+        "threat_model": threat_model,
         "current_payload": None,
         "current_attempt": None,
         "current_evaluation": None,
         "history": [],
         "findings": [],
+        "component_scores": [mapper_score, tm_score, goal_score, classifier_score],
         "iteration": 0,
         "max_iterations": iterations,
         "max_mutations": mutations,
@@ -119,6 +176,7 @@ async def run(target_type: str, port: int, iterations: int, mutations: int, user
         "configurable": {"thread_id": session_id},
         "recursion_limit": 150
     }
+
     
     print("\n==================================================")
     print(f"🚀 Starting Attack Session: {session_id}")
@@ -224,8 +282,26 @@ async def run(target_type: str, port: int, iterations: int, mutations: int, user
         report_content=report_content
     )
 
+    # Print Session Benchmark Performance Summary
+    try:
+        summary_store = BenchmarkStore()
+        summary_data = await summary_store.get_session_summary(session_id)
+        print("\n📊 PIPELINE COMPONENT BENCHMARK SUMMARY")
+        print("--------------------------------------------------")
+        print(f"Session ID              : {session_id}")
+        print(f"Total Attack Attempts   : {summary_data.get('total_attempts', 0)}")
+        print(f"Attack Success Rate     : {int(summary_data.get('success_rate', 0) * 100)}%")
+        print(f"Mean Pipeline Confidence: {summary_data.get('mean_pipeline_confidence', 0.0)}")
+        print("Component Confidence Means:")
+        for comp, mean_c in summary_data.get("component_means", {}).items():
+            print(f"  - {comp:<20}: {mean_c}")
+        print("--------------------------------------------------\n")
+    except Exception as e:
+        logging.getLogger(__name__).warning(f"Could not print benchmark summary: {e}")
+
     print("✅ Session Complete. Trace and Report uploaded to Supabase Storage.")
     print("==================================================\n")
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run the AI Red Team framework against a local target.")
@@ -234,6 +310,7 @@ if __name__ == "__main__":
     parser.add_argument("--iter", type=int, default=3, help="Max iterations to run")
     parser.add_argument("--mutations", type=int, default=3, help="Max mutations")
     parser.add_argument("--user_id", default="00000000-0000-0000-0000-000000000000", help="Supabase User ID")
+    parser.add_argument("--declared_type", default=None, help="Pre-declared target type from blueprint (chatbot/rag/tool_agent)")
     
     args = parser.parse_args()
-    asyncio.run(run(args.target, args.port, args.iter, args.mutations, args.user_id))
+    asyncio.run(run(args.target, args.port, args.iter, args.mutations, args.user_id, args.declared_type))

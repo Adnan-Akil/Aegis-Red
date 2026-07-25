@@ -198,25 +198,6 @@ The string matching filter evaluates the string as safe (evaluates to `False`), 
 
 ---
 
-## 🧪 6. The Controlled Target Ecosystem
-
-Aegis-Red was tested against controlled target benchmark apps located in `benchmark_apps/`:
-
-### 🤖 1. The Standard Chatbot (`chatbot_vuln`)
-* **Objective**: Override persona restrictions, extract system prompts, and bypass standard policy refusals.
-* **Weakness**: Soft persona configuration. Bypassed using hypothetical storytelling and token-prediction traps.
-
-### 📁 2. The RAG Assistant (`rag_vuln`)
-* **Objective**: Extract proprietary documents containing simulated PII (Social Security Numbers, private strategy docs).
-* **Defenses**: Strict English-only DLP regex filter scanning outgoing responses.
-* **Weakness**: Translation Misdirection (demanding output in French/German) and Base64 exfiltration bypassed the English DLP filter.
-
-### ☁️ 3. The CloudOps Tool Agent (`tool_agent_vuln`)
-* **Objective**: Trigger backend commands (e.g. `reboot_server`, `delete_user`) without administrative permissions.
-* **Defenses**: Role-based access checks.
-* **Weakness**: Vulnerable to Indirect Prompt Injection and Chain-of-Thought Manipulation, convincing the model that the user is an authorized admin.
-
----
 
 ## 📊 7. Performance & Evaluation Metrics
 

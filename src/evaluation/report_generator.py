@@ -3,7 +3,8 @@ import json
 import logging
 from datetime import datetime
 from groq import AsyncGroq
-from src.config import DEFAULT_MODEL
+from src.config import FAST_MODEL
+from src.utils.llm import call_llm_with_retry
 from src.evaluation.md_compiler import compile_report
 
 logger = logging.getLogger(__name__)
@@ -22,8 +23,8 @@ async def generate_cybersec_report(trace_markdown: str, target_url: str, session
         logger.error("No API keys available for report generation.")
         return "ERROR: Report generation failed due to missing API keys."
 
-    # Default to the most capable model for primary report generation
-    model = "llama-3.3-70b-versatile" if os.getenv("REPORT_LLM_API_KEY") else DEFAULT_MODEL
+    # Default to FAST_MODEL to conserve rate limits unless a dedicated report key is provided
+    model = "llama-3.3-70b-versatile" if os.getenv("REPORT_LLM_API_KEY") else FAST_MODEL
     client = AsyncGroq(api_key=api_key)
 
     today = datetime.utcnow().strftime("%Y-%m-%d")
@@ -110,7 +111,8 @@ Respond ONLY with the JSON object. Do not include markdown code fence wrappers (
 
     try:
         logger.info("Attempting report generation using JSON Mode...")
-        response = await client.chat.completions.create(
+        response = await call_llm_with_retry(
+            client.chat.completions.create,
             model=model,
             messages=[
                 {"role": "system", "content": system_message_json},
@@ -289,8 +291,9 @@ Generate the report using EXACTLY this structure:
 """
 
         try:
-            response = await client.chat.completions.create(
-                model="llama-3.1-8b-instant",  # Force 8B fallback to avoid repeating rate limits
+            response = await call_llm_with_retry(
+                client.chat.completions.create,
+                model=FAST_MODEL,  # Force fast fallback to avoid repeating rate limits
                 messages=[
                     {"role": "system", "content": system_message_fallback},
                     {"role": "user", "content": prompt_fallback},

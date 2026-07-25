@@ -10,14 +10,17 @@ ROOT_DIR = Path(__file__).parent.parent
 main_env = ROOT_DIR / ".env"
 if main_env.exists():
     load_dotenv(main_env)
-else:
-    # Fallback for the current benchmark setup
-    load_dotenv(ROOT_DIR / "benchmark_apps" / "chatbot_vuln" / "backend" / ".env")
 
 # LLM Configurations
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 REPORT_LLM_API_KEY = os.getenv("REPORT_LLM_API_KEY")
+
+# Target simulation model — realistic, used ONLY for factory_server.py responses
 DEFAULT_MODEL = "meta-llama/llama-4-scout-17b-16e-instruct"
+
+# Internal agent model — fast, cheap, separate Groq rate-limit bucket (~500k TPD)
+# Used by: planner, evaluator, mutator, prober, threat_modeler, mapper, report_generator
+FAST_MODEL = "llama-3.1-8b-instant"
 
 # Database Configuration
 DATA_DIR = ROOT_DIR / "data"

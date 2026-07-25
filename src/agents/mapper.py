@@ -18,6 +18,8 @@ from typing import Optional
 from urllib.parse import urlparse
 
 from groq import AsyncGroq
+from src.config import FAST_MODEL
+from src.utils.llm import call_llm_with_retry
 
 from src.tools.browser.playwright_driver import PlaywrightDriver
 from src.tools.browser.selectors import SELECTORS
@@ -298,8 +300,9 @@ async def _detect_llm(page) -> Optional[DiscoveredSurface]:
 
     try:
         client = AsyncGroq(api_key=api_key)
-        resp = await client.chat.completions.create(
-            model="meta-llama/llama-4-scout-17b-16e-instruct",
+        resp = await call_llm_with_retry(
+            client.chat.completions.create,
+            model=FAST_MODEL,
             messages=[
                 {"role": "system", "content": _LLM_SYSTEM},
                 {"role": "user",   "content": f"URL: {page.url}\n\nHTML:\n{html}"},

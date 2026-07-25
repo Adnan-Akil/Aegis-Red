@@ -9,15 +9,23 @@ from datetime import datetime
 from dataclasses import dataclass
 
 @dataclass
-class TraceIteration:
-    iteration: int
+class TraceAttempt:
     category: str = "Unknown"
     payload_text: str = ""
     response_text: Optional[str] = None
     verdict: Optional[str] = None
     score: float = 0.0
     reasoning: Optional[str] = None
-    status: str = "pending"  # "completed", "interrupted", "cancelled", "error"
+    status: str = "pending"
+
+@dataclass
+class TraceIteration:
+    iteration: int
+    attempts: List[TraceAttempt] = None
+    
+    def __post_init__(self):
+        if self.attempts is None:
+            self.attempts = []
 
 class TraceBuilder:
     def __init__(self, session_id: str, target_url: str, target_type: str):
@@ -28,32 +36,36 @@ class TraceBuilder:
         self.termination_marker: Optional[str] = None
 
     def start_iteration(self, iteration_num: int):
-        # If there is a pending iteration that never finished, mark it as interrupted
+        # If there is a pending iteration with a pending attempt, close it first
         self.close_pending("interrupted", "Iteration did not complete — executor exception or timeout.")
         self.iterations.append(TraceIteration(iteration=iteration_num))
 
     def add_payload(self, category: str, payload_text: str):
         if self.iterations:
-            self.iterations[-1].category = category
-            self.iterations[-1].payload_text = payload_text
+            current_it = self.iterations[-1]
+            current_it.attempts.append(TraceAttempt(category=category, payload_text=payload_text))
 
     def add_evaluation(self, response_text: str, verdict: str, score: float, reasoning: str):
         if self.iterations:
-            current = self.iterations[-1]
-            current.response_text = response_text
-            current.verdict = verdict
-            current.score = score
-            current.reasoning = reasoning
-            current.status = "completed"
+            current_it = self.iterations[-1]
+            if current_it.attempts:
+                current_attempt = current_it.attempts[-1]
+                current_attempt.response_text = response_text
+                current_attempt.verdict = verdict
+                current_attempt.score = score
+                current_attempt.reasoning = reasoning
+                current_attempt.status = "completed"
 
     def close_pending(self, status: str, reasoning: str, response_text: Optional[str] = None):
-        if self.iterations and self.iterations[-1].status == "pending":
-            current = self.iterations[-1]
-            current.status = status
-            current.reasoning = reasoning
-            current.response_text = response_text
-            current.score = 0.0
-            current.verdict = status.upper()
+        if self.iterations:
+            current_it = self.iterations[-1]
+            if current_it.attempts and current_it.attempts[-1].status == "pending":
+                current_attempt = current_it.attempts[-1]
+                current_attempt.status = status
+                current_attempt.reasoning = reasoning
+                current_attempt.response_text = response_text
+                current_attempt.score = 0.0
+                current_attempt.verdict = status.upper()
 
     def set_termination(self, marker_type: str, message: str):
         if marker_type == "cancelled":
@@ -74,30 +86,32 @@ class TraceBuilder:
 
         for it in self.iterations:
             md.append(f"## Iteration {it.iteration}")
-            md.append(f"### {it.category.upper()}")
-            md.append("**Payload**:")
-            md.append(format_blockquote(it.payload_text))
             md.append("")
-            
-            md.append("**Response**:")
-            if it.response_text is not None:
-                md.append(format_blockquote(it.response_text))
-            else:
-                if it.status == "interrupted":
-                    md.append("> *(none — executor failed or timed out)*")
-                elif it.status == "cancelled":
-                    md.append("> *(none — session cancelled)*")
-                elif it.status == "error":
-                    md.append("> *(none — session crashed)*")
+            for idx, attempt in enumerate(it.attempts, 1):
+                md.append(f"### Attempt {it.iteration}.{idx} - {attempt.category.upper()}")
+                md.append("**Payload**:")
+                md.append(format_blockquote(attempt.payload_text))
+                md.append("")
+                
+                md.append("**Response**:")
+                if attempt.response_text is not None:
+                    md.append(format_blockquote(attempt.response_text))
                 else:
-                    md.append("> *(none)*")
-            md.append("")
+                    if attempt.status == "interrupted":
+                        md.append("> *(none — executor failed or timed out)*")
+                    elif attempt.status == "cancelled":
+                        md.append("> *(none — session cancelled)*")
+                    elif attempt.status == "error":
+                        md.append("> *(none — session crashed)*")
+                    else:
+                        md.append("> *(none)*")
+                md.append("")
 
-            verdict_str = it.verdict or "UNKNOWN"
-            reasoning_str = it.reasoning or "No reasoning provided."
-            md.append(f"**Verdict**: {verdict_str} (Score: {it.score})")
-            md.append(f"**Reasoning**: {reasoning_str}")
-            md.append("")
+                verdict_str = attempt.verdict or "UNKNOWN"
+                reasoning_str = attempt.reasoning or "No reasoning provided."
+                md.append(f"**Verdict**: {verdict_str} (Score: {attempt.score})")
+                md.append(f"**Reasoning**: {reasoning_str}")
+                md.append("")
             md.append("---")
             md.append("")
 

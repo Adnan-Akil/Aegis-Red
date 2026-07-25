@@ -4,9 +4,10 @@ import asyncio
 from pydantic import BaseModel
 from typing import Literal
 from groq import AsyncGroq
-from src.memory.schemas import TargetProfile
+from src.memory.schemas import TargetProfile, ComponentScore
 from src.tools.browser.playwright_driver import PlaywrightDriver
-from src.config import DEFAULT_MODEL
+from src.config import FAST_MODEL
+from src.utils.llm import call_llm_with_retry
 
 logger = logging.getLogger(__name__)
 
@@ -14,12 +15,12 @@ class ActiveProbeResult(BaseModel):
     inferred_type: Literal["chatbot", "rag", "tool_agent", "unknown"]
     capabilities: list[str]
 
-async def active_probe(target: TargetProfile) -> TargetProfile:
+async def active_probe(target: TargetProfile, session_id: str = "") -> tuple[TargetProfile, ComponentScore]:
     """
     Actively chats with the target using a series of specific probes to discover its 
-    true capabilities. Sends multiple probes (tools, RAG, actions) and classifies 
-    based on the combined transcript.
+    true capabilities. Returns (TargetProfile, ComponentScore).
     """
+
     logger.info("--- Enhanced Active Prober ---")
     logger.info("Starting multi-stage interrogation sequence...")
     
@@ -82,11 +83,30 @@ async def active_probe(target: TargetProfile) -> TargetProfile:
                     
     except Exception as e:
         logger.error(f"Active prober browser session failed: {e}")
-        return target
+        score = ComponentScore(
+            session_id=session_id, component="classifier", confidence=0.25, method="fallback", notes=str(e)
+        )
+        return target, score
 
     if not combined_transcript:
         logger.warning("No probe responses received. Skipping classification.")
-        return target
+        score = ComponentScore(
+            session_id=session_id, component="classifier", confidence=0.25, method="fallback", notes="No probe responses"
+        )
+        return target, score
+
+    # ── Short-circuit: if the caller already declared the target type (from YAML
+    #    blueprint), trust it. Only run LLM classification for truly unknown targets.
+    KNOWN_TYPES = {"chatbot", "rag", "tool_agent"}
+    if target.target_type in KNOWN_TYPES:
+        logger.info(
+            f"[Prober] Declared type '{target.target_type}' respected — skipping LLM classification."
+        )
+        score = ComponentScore(
+            session_id=session_id, component="classifier", confidence=1.0, method="lookup", notes=f"Declared: {target.target_type}"
+        )
+        return target, score
+
 
     logger.info(f"Page Title: '{metadata.get('title')}', Streamlit components: {metadata.get('has_streamlit')}")
     from urllib.parse import urlparse
@@ -193,18 +213,42 @@ async def active_probe(target: TargetProfile) -> TargetProfile:
                 suspected_caps = ["RAG document search API"]
                 break
 
-    # C. Search WebSocket and XHR payload traces for explicit keywords
+    # C. Search WebSocket and XHR payload traces for explicit structural key matches
+    def has_dict_key(data, target_keys: list[str]) -> bool:
+        if isinstance(data, dict):
+            for k, v in data.items():
+                if k.lower() in target_keys:
+                    if k.lower() == "sources":
+                        # Only count as RAG if 'sources' exists and is a non-empty collection
+                        if v:
+                            return True
+                    else:
+                        return True
+                if has_dict_key(v, target_keys):
+                    return True
+        elif isinstance(data, list):
+            for item in data:
+                if has_dict_key(item, target_keys):
+                    return True
+        return False
+
     if not structural_verdict:
         for trace in traces:
-            body_str = json.dumps(trace.get("body", {}))
-            if any(kw in body_str.lower() for kw in ["tool_calls", "function_call", "available_tools"]):
+            body = trace.get("body", {})
+            if isinstance(body, str):
+                try:
+                    body = json.loads(body)
+                except Exception:
+                    pass
+            
+            if has_dict_key(body, ["tool_calls", "function_call", "available_tools"]):
                 structural_verdict = "tool_agent"
-                structural_reasoning = f"Captured network payload containing tool-calling structures: {body_str[:150]}"
+                structural_reasoning = f"Captured network payload containing tool-calling keys: {list(body.keys()) if isinstance(body, dict) else ''}"
                 suspected_caps = ["Dynamic tool-calling capabilities"]
                 break
-            elif any(kw in body_str.lower() for kw in ["sources", "retrieval_context", "document_title"]):
+            elif has_dict_key(body, ["sources", "retrieval_context", "document_title"]):
                 structural_verdict = "rag"
-                structural_reasoning = f"Captured network payload containing RAG search details: {body_str[:150]}"
+                structural_reasoning = f"Captured network payload containing RAG search keys: {list(body.keys()) if isinstance(body, dict) else ''}"
                 suspected_caps = ["Static document search/retrieval capabilities"]
                 break
 
@@ -230,7 +274,7 @@ async def active_probe(target: TargetProfile) -> TargetProfile:
         structural_context += "\n\n--- STRUCTURAL NETWORK EVIDENCE ---\n" + "\n\n".join(keyword_evidence)
 
     full_context = "\n\n".join(combined_transcript) + structural_context
-    logger.info("Analysing combined probe transcript and structural analysis for classification...")
+    logger.info("Analysing combined probe transcript and structural analysis for classification (unknown target)...")
     
     api_key = os.getenv("GROQ_API_KEY")
     if not api_key:
@@ -273,8 +317,9 @@ Return ONLY this JSON object:
         user_prompt += f"\n\nNOTE: Structural inspection strongly suggests the target type is '{structural_verdict}'."
 
     try:
-        completion = await client.chat.completions.create(
-            model=DEFAULT_MODEL,
+        completion = await call_llm_with_retry(
+            client.chat.completions.create,
+            model=FAST_MODEL,
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt}
@@ -284,27 +329,45 @@ Return ONLY this JSON object:
         )
         
         result_json = completion.choices[0].message.content
-        if not result_json:
-            if structural_verdict:
-                target.target_type = structural_verdict
-                target.suspected_capabilities = list(set(target.suspected_capabilities + suspected_caps))
-            return target
-            
-        result = ActiveProbeResult.model_validate_json(result_json)
-        logger.info(f"Active Probe Verdict: {result.inferred_type.upper()}")
-        target.target_type = result.inferred_type
-        
-        # Merge suspected capabilities
-        caps_to_add = result.capabilities if result.capabilities else suspected_caps
-        for cap in caps_to_add:
-            if cap not in target.suspected_capabilities:
-                target.suspected_capabilities.append(cap)
-                
+        if result_json:
+            result = ActiveProbeResult.model_validate_json(result_json)
+            logger.info(f"Active Probe Verdict: {result.inferred_type.upper()}")
+            target.target_type = result.inferred_type
+            caps_to_add = result.capabilities if result.capabilities else suspected_caps
+            for cap in caps_to_add:
+                if cap not in target.suspected_capabilities:
+                    target.suspected_capabilities.append(cap)
+
     except Exception as e:
         logger.error(f"LLM classification of prober transcript failed: {e}")
         if structural_verdict:
             logger.info(f"Falling back to structural verdict: {structural_verdict.upper()}")
             target.target_type = structural_verdict
             target.suspected_capabilities = list(set(target.suspected_capabilities + suspected_caps))
-        
-    return target
+
+    # Compute classification confidence & method
+    if structural_verdict and target.target_type == structural_verdict:
+        conf = 1.0 if api_key else 0.75
+        method = "hybrid" if api_key else "heuristic"
+    elif structural_verdict:
+        conf = 0.75
+        method = "heuristic"
+    elif api_key:
+        conf = 0.5
+        method = "llm_judge"
+    else:
+        conf = 0.25
+        method = "fallback"
+
+    score = ComponentScore(
+        session_id=session_id,
+        component="classifier",
+        confidence=conf,
+        method=method,
+        notes=f"Inferred target type: '{target.target_type}'. Structural verdict: '{structural_verdict}'",
+    )
+
+    logger.info(f"[Prober] Classification complete. Type='{target.target_type}', Confidence={conf} ({method})")
+    return target, score
+
+

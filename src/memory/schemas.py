@@ -15,11 +15,15 @@ from pydantic import BaseModel, Field
 
 __all__ = [
     "TargetProfile",
+    "ThreatModel",
+    "ComponentScore",
+    "BenchmarkRecord",
     "AttackPayload",
     "AttackAttempt",
     "EvaluationResult",
     "VulnerabilityFinding",
 ]
+
 
 # ---------------------------------------------------------------------------
 # Target
@@ -41,6 +45,65 @@ class TargetProfile(BaseModel):
     # Populated by the Surface Mapper — overrides hardcoded SELECTORS when set
     discovered_selectors: dict | None = None
     discovery_url: str | None = None        # actual chat page URL (may differ from url)
+
+
+class ThreatModel(BaseModel):
+    """Structured security profile produced by threat modeler & goal resolver."""
+
+    session_id: str
+    target_id: str
+    target_type: Literal["chatbot", "rag", "tool_agent", "unknown"]
+    security_level: Literal["naked", "basic", "moderate", "fortified", "hardened", "unknown"]
+    security_filter_detected: bool = False
+    suspected_capabilities: list[str] = Field(default_factory=list)
+    known_constraints: list[str] = Field(default_factory=list)
+    attack_goal: Literal["jailbreak", "mixed"]
+    allowed_categories: list[str] = Field(default_factory=list)
+    goal_rationale: str = ""
+    threat_model_confidence: float = Field(default=1.0, ge=0.0, le=1.0)
+    raw_notes: str = ""
+    timestamp: datetime = Field(default_factory=datetime.utcnow)
+
+
+class ComponentScore(BaseModel):
+    """Per-component confidence record emitted during pipeline execution."""
+
+    score_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    session_id: str
+    component: Literal[
+        "mapper",
+        "classifier",
+        "threat_modeler",
+        "goal_resolver",
+        "planner_category",
+        "planner_payload",
+        "executor",
+        "evaluator",
+    ]
+    confidence: float = Field(ge=0.0, le=1.0)
+    method: str = ""
+    notes: str = ""
+    timestamp: datetime = Field(default_factory=datetime.utcnow)
+
+
+class BenchmarkRecord(BaseModel):
+    """Attempt-level telemetry record written to the benchmark store."""
+
+    record_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    session_id: str
+    attack_id: str                          # attempt_id
+    target_id: str
+    target_type: str
+    security_level: str
+    attack_goal: str
+    payload_category: str
+    verdict: str
+    score: float = Field(ge=0.0, le=1.0)
+    pipeline_confidence: float = Field(ge=0.0, le=1.0)
+    component_scores: dict[str, float] = Field(default_factory=dict)
+    evaluation_method: str
+    is_community_shared: bool = True
+    timestamp: datetime = Field(default_factory=datetime.utcnow)
 
 
 # ---------------------------------------------------------------------------

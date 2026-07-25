@@ -14,10 +14,6 @@ backend/.env
 **/node_modules/
 **/.next/
 
-# Benchmark app runtime artifacts
-benchmark_apps/**/backend/.env
-benchmark_apps/**/nohup.out
-benchmark_apps/**/backend.log
 
 # Generated output
 data/framework.db
