@@ -3,8 +3,6 @@ tests/unit/test_ssrf_guard.py
 
 Unit tests for SSRF Target Guard (src/utils/ssrf_guard.py)
 """
-import os
-import pytest
 from src.utils.ssrf_guard import validate_target_url
 
 

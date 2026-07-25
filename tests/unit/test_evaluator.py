@@ -4,6 +4,7 @@ tests/unit/test_evaluator.py
 Unit tests for Evaluator logic and regex secret detection (src/agents/evaluator.py)
 """
 import pytest
+
 from src.agents.evaluator import _detect_and_decode_base64, evaluate_attempt
 from src.memory.schemas import AttackAttempt, AttackPayload
 

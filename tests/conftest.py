@@ -12,7 +12,8 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 import pytest
-from src.memory.schemas import TargetProfile, AttackPayload, AttackAttempt, EvaluationResult
+
+from src.memory.schemas import AttackAttempt, AttackPayload, TargetProfile
 
 
 @pytest.fixture

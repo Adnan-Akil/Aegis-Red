@@ -139,6 +139,20 @@ export function AuthModal({ isOpen, onClose, defaultMode = "signin" }: AuthModal
                 />
               </div>
 
+              <div className="flex items-start gap-2 mt-1">
+                <input
+                  type="checkbox"
+                  id="auth-disclaimer"
+                  required
+                  className="mt-0.5 rounded bg-black/40 border-white/10 text-red-500 focus:ring-red-500/20 cursor-pointer"
+                />
+                <label htmlFor="auth-disclaimer" className="text-[11px] text-zinc-400 leading-tight cursor-pointer">
+                  I confirm I have explicit legal authorization to perform red-teaming security assessments on target systems per our{" "}
+                  <a href="/terms" target="_blank" className="text-zinc-200 underline hover:text-white">Terms</a> and{" "}
+                  <a href="/privacy" target="_blank" className="text-zinc-200 underline hover:text-white">Privacy Policy</a>.
+                </label>
+              </div>
+
               {error && (
                 <div className="text-red-400 text-xs bg-red-500/10 p-2 rounded border border-red-500/20">
                   {error}
