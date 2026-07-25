@@ -90,10 +90,11 @@ async def run(target_type: str, port: int, iterations: int, mutations: int, user
     if declared_type and declared_type in ("chatbot", "rag", "tool_agent"):
         actual_target_type = declared_type
         logging.getLogger(__name__).info(f"Using caller-declared target type: {actual_target_type}")
-    
+
     from src.agents.goal_resolver import resolve_attack_goal
     from src.memory.benchmark_store import BenchmarkStore
     from src.memory.schemas import ComponentScore, ThreatModel
+
     # Reconnaissance Phase (Module 1 & 2)
     mapper_data = await map_surface(url, target_name=name, target_type=actual_target_type)
     target, tm_score = await generate_threat_model(url, target_name=name, base_target_type=actual_target_type, port=port, mapper_data=mapper_data)

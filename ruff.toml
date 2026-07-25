@@ -1,5 +1,7 @@
 [lint]
+extend-select = ["I"]
 ignore = [
+    "E501",    # Line too long (CSS selectors can't be split)
     "BLE001",  # Do not catch blind exception
     "S110",    # try-except-pass
     "S112",    # try-except-continue
