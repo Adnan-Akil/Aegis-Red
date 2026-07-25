@@ -17,10 +17,12 @@ if sys.platform == "win32":
     asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
 
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response, StreamingResponse
 from pydantic import BaseModel
+
+from backend.auth import verify_supabase_jwt
 
 # ── Ensure project root is on sys.path so src/ is importable ─────────────────
 ROOT = Path(__file__).parent.parent

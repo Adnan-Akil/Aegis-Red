@@ -4,12 +4,13 @@ backend/auth.py
 Supabase JWT verification dependency for FastAPI backend routes.
 Validates the 'Authorization: Bearer <token>' header against Supabase Auth.
 """
-import os
 import logging
-from typing import Optional, Dict, Any
+import os
+from typing import Any
+
 from fastapi import Depends, HTTPException, status
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from supabase import create_client, Client
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from supabase import Client, create_client
 
 logger = logging.getLogger(__name__)
 
@@ -17,7 +18,7 @@ logger = logging.getLogger(__name__)
 security = HTTPBearer(auto_error=False)
 
 # Cached Supabase auth client
-_supabase_client: Optional[Client] = None
+_supabase_client: Client | None = None
 
 def get_supabase_client() -> Client:
     global _supabase_client
@@ -35,8 +36,8 @@ def get_supabase_client() -> Client:
     return _supabase_client
 
 async def verify_supabase_jwt(
-    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security)
-) -> Dict[str, Any]:
+    credentials: HTTPAuthorizationCredentials | None = Depends(security)
+) -> dict[str, Any]:
     """
     Verifies Supabase JWT token passed via Bearer authorization header.
     Returns user dictionary containing authenticated 'id' (UUID) and email.
@@ -79,9 +80,10 @@ async def verify_supabase_jwt(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"JWT Verification failed: {str(e)}")
+        logger.error(f"JWT Verification failed: {e!s}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=f"Authentication failed: {str(e)}",
+            detail=f"Authentication failed: {e!s}",
             headers={"WWW-Authenticate": "Bearer"},
         )
+

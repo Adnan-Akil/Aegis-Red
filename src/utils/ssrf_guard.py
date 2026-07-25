@@ -4,11 +4,10 @@ src/utils/ssrf_guard.py
 Target URL SSRF (Server-Side Request Forgery) protection and validation module.
 Validates scan target URLs to prevent attacks against internal infrastructure or cloud metadata endpoints.
 """
+import logging
 import os
 import socket
-import logging
 from urllib.parse import urlparse
-from typing import Tuple, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -34,10 +33,10 @@ PRIVATE_IP_PREFIXES = (
 LOOPBACK_PREFIXES = ("127.", "::1", "fe80:")
 
 
-def validate_target_url(url: str) -> Tuple[bool, Optional[str]]:
+def validate_target_url(url: str) -> tuple[bool, str | None]:
     """
     Validates a scan target URL against SSRF rules.
-    Returns (is_valid: bool, error_message: Optional[str]).
+    Returns (is_valid: bool, error_message: str | None).
     
     Rules:
     1. Scheme must be http or https.
@@ -50,7 +49,7 @@ def validate_target_url(url: str) -> Tuple[bool, Optional[str]]:
         return False, "Target URL must be a non-empty string."
 
     url_str = url.strip()
-    if not (url_str.startswith("http://") or url_str.startswith("https://")):
+    if not url_str.startswith(("http://", "https://")):
         return False, "Target URL must start with http:// or https://"
 
     try:
@@ -97,5 +96,6 @@ def validate_target_url(url: str) -> Tuple[bool, Optional[str]]:
         return True, None
 
     except Exception as e:
-        logger.error(f"Error validating target URL '{url}': {str(e)}")
-        return False, f"Invalid target URL structure: {str(e)}"
+        logger.error(f"Error validating target URL '{url}': {e!s}")
+        return False, f"Invalid target URL structure: {e!s}"
+

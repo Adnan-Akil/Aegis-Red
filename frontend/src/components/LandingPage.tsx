@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { motion, useScroll, useTransform, AnimatePresence, type Variants } from "framer-motion";
 import { supabase } from "@/lib/supabase";
 import { AuthModal } from "@/components/AuthModal";
-import { AuroraBars } from "@/components/unlumen-ui/aurora-bars";
 import {
   ShieldCheck,
   Network,
@@ -164,12 +163,6 @@ export function LandingPage() {
 
         {/* Dark overlay */}
         <div className="absolute inset-0 z-0 bg-black/40" />
-
-        {/* Unlumen UI Aurora Bars positioned in bottom half of Hero section */}
-        <div className="absolute bottom-0 left-0 right-0 h-1/2 z-1 pointer-events-none overflow-hidden">
-          <AuroraBars className="z-1 mix-blend-screen opacity-90" />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent pointer-events-none" />
-        </div>
 
         {/* Vignette */}
         <div
