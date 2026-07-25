@@ -389,7 +389,7 @@ async def generate_pdf(
     else:
         raise HTTPException(status_code=400, detail="Must provide either 'markdown' or 'html'")
 
-    try:
+    def _render_pdf_bytes(html_str: str) -> bytes:
         from weasyprint import CSS, HTML
         # Force a single continuous page: override @page via an external stylesheet
         # which takes cascade precedence over anything inside the HTML document.
