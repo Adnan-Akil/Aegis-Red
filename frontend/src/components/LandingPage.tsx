@@ -608,9 +608,17 @@ export function LandingPage() {
         >
           Aegis-Red
         </span>
-        <span className="text-zinc-400 text-xs font-mono">
-          © 2026 · For authorised AI security research only.
-        </span>
+        <div className="flex items-center gap-4 text-xs font-mono text-zinc-400">
+          <a href="/terms" className="hover:text-zinc-200 underline transition-colors">
+            Terms of Service
+          </a>
+          <span>·</span>
+          <a href="/privacy" className="hover:text-zinc-200 underline transition-colors">
+            Privacy Policy
+          </a>
+          <span>·</span>
+          <span>© 2026 Aegis-Red</span>
+        </div>
       </footer>
 
       {/* ── AUTH MODAL ───────────────────────────────────────────────────── */}
